@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './Testimonials.css';
 
 const Testimonials = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+    const containerRef = useRef(null);
 
     const testimonials = [
         {
@@ -44,6 +46,46 @@ const Testimonials = () => {
         visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
     };
 
+    // Auto-play logic
+    useEffect(() => {
+        if (!isHovered) {
+            const timer = setInterval(() => {
+                nextSlide();
+            }, 6000); // 6 seconds
+            return () => clearInterval(timer);
+        }
+    }, [isHovered, currentIndex]);
+
+    // Mouse Spotlight & 3D Tilt Tracker per Card
+    const handleMouseMove = (e) => {
+        const card = e.currentTarget;
+        const rect = card.getBoundingClientRect();
+
+        // Spotlight coordinates
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // 3D Tilt perspective math (max 5 degree tilt)
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        // Pushing the right side (x > centerX) rotates positively on Y axis
+        const tiltX = ((x - centerX) / centerX) * 5;
+        // Pushing the bottom side (y > centerY) rotates negatively on X axis
+        const tiltY = ((centerY - y) / centerY) * 5;
+
+        card.style.setProperty('--mouse-x', `${x}px`);
+        card.style.setProperty('--mouse-y', `${y}px`);
+        card.style.setProperty('--tilt-x', `${tiltX}deg`);
+        card.style.setProperty('--tilt-y', `${tiltY}deg`);
+    };
+
+    const handleMouseLeaveCard = (e) => {
+        // Snap back to zero when mouse leaves card
+        const card = e.currentTarget;
+        card.style.setProperty('--tilt-x', `0deg`);
+        card.style.setProperty('--tilt-y', `0deg`);
+    };
+
     return (
         <section className="testimonials section" id="testimonials">
             <div className="container">
@@ -64,6 +106,8 @@ const Testimonials = () => {
                     whileInView="visible"
                     viewport={{ once: true, margin: "-100px" }}
                     variants={fadeUp}
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
                 >
                     <button className="carousel-btn prev" onClick={prevSlide}>
                         <ChevronLeft size={24} />
@@ -79,7 +123,11 @@ const Testimonials = () => {
                                 transition={{ duration: 0.4, ease: "easeInOut" }}
                                 className="carousel-slide"
                             >
-                                <div className="testimonial-card card-glass">
+                                <div
+                                    className="testimonial-card card-glass"
+                                    onMouseMove={handleMouseMove}
+                                    onMouseLeave={handleMouseLeaveCard}
+                                >
                                     <Quote className="quote-icon" size={40} />
                                     <p className="testimonial-text">"{testimonials[currentIndex].quote}"</p>
                                     <div className="testimonial-author">

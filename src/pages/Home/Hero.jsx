@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { TrendingUp, ArrowRight } from 'lucide-react';
+import CountUpAnimation from '../../components/ui/CountUpAnimation';
 import './Hero.css';
 
 const Hero = () => {
@@ -62,15 +63,21 @@ const Hero = () => {
 
                     <motion.div variants={itemVariants} className="hero-stats-row">
                         <div className="stat-block">
-                            <span className="stat-number">14+</span>
+                            <span className="stat-number">
+                                <CountUpAnimation targetNumber="14" suffix="+" duration={2.5} />
+                            </span>
                             <span className="stat-label">Years Experience</span>
                         </div>
                         <div className="stat-block">
-                            <span className="stat-number">$100M+</span>
+                            <span className="stat-number">
+                                <CountUpAnimation targetNumber="100" prefix="$" suffix="M+" duration={2.5} />
+                            </span>
                             <span className="stat-label">Ad Spend Managed</span>
                         </div>
                         <div className="stat-block">
-                            <span className="stat-number">250+</span>
+                            <span className="stat-number">
+                                <CountUpAnimation targetNumber="250" suffix="+" duration={2.5} />
+                            </span>
                             <span className="stat-label">Brands Scaled</span>
                         </div>
                     </motion.div>

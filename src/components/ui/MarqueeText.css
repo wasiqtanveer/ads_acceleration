@@ -50,3 +50,15 @@
 body.light-mode .marquee-text-container {
     box-shadow: 0 10px 30px rgba(255, 204, 0, 0.3);
 }
+
+@media (max-width: 768px) {
+    .marquee-text-track {
+        animation-duration: 60s;
+        /* Slows down the marquee on mobile */
+    }
+
+    .marquee-text-item {
+        font-size: 1.5rem;
+        /* Ensure it fits nicely on mobile */
+    }
+}

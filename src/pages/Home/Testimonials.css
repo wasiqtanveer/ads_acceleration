@@ -82,6 +82,61 @@
     align-items: center;
     text-align: center;
     height: 100%;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+
+    /* 3D Physics base */
+    transform-style: preserve-3d;
+    transform: perspective(1000px) rotateY(var(--tilt-x, 0deg)) rotateX(var(--tilt-y, 0deg));
+    transition: transform 0.1s ease-out, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+/* Ambient "Breathing Core" state when NOT hovered */
+.testimonial-card:not(:hover) {
+    animation: ambientGlow 4s infinite alternate ease-in-out;
+    transition: transform 0.5s ease-out;
+    /* Smooth snap back to 0deg tilt */
+}
+
+@keyframes ambientGlow {
+    0% {
+        box-shadow: 0 0 0 rgba(255, 204, 0, 0);
+        border-color: var(--color-border);
+    }
+
+    100% {
+        box-shadow: 0 0 25px rgba(255, 204, 0, 0.05);
+        border-color: rgba(255, 204, 0, 0.2);
+    }
+}
+
+/* Mouse Spotlight Effect */
+.testimonial-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at var(--mouse-x, -500px) var(--mouse-y, -500px),
+            rgba(255, 204, 0, 0.15),
+            transparent 40%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.testimonial-card:hover::before {
+    opacity: 1;
+}
+
+/* Ensure content stays above the spotlight layer */
+.testimonial-card>* {
+    position: relative;
+    z-index: 2;
 }
 
 .quote-icon {

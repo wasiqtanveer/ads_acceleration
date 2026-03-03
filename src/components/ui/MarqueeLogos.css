@@ -60,3 +60,10 @@
         transform: translateX(-50%);
     }
 }
+
+@media (max-width: 768px) {
+    .marquee-logos-track {
+        animation-duration: 60s;
+        /* Slower on mobile */
+    }
+}
