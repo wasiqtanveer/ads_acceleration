@@ -1,0 +1,30 @@
+/* Hide default cursor globally */
+body,
+a,
+button {
+    cursor: none !important;
+}
+
+.custom-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 12px;
+    height: 12px;
+    background-color: var(--color-primary);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 99999;
+    transition: width 0.3s ease, height 0.3s ease, background-color 0.3s ease, border-radius 0.3s ease, mix-blend-mode 0.3s ease;
+    will-change: transform, width, height;
+}
+
+.custom-cursor.hover {
+    width: 45px;
+    height: 45px;
+    background-color: rgba(255, 204, 0, 0.2);
+    border: 2px solid var(--color-primary);
+    /* Optional: use mix-blend-mode for a cool inversion effect on text */
+    mix-blend-mode: difference;
+}

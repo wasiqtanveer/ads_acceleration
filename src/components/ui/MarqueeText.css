@@ -1,0 +1,52 @@
+.marquee-text-container {
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--color-primary);
+    color: #000;
+    padding: 1.5rem 0;
+    white-space: nowrap;
+    position: relative;
+    display: flex;
+    align-items: center;
+    transform: rotate(-2deg);
+    margin: 4rem 0;
+    box-shadow: 0 10px 30px rgba(255, 204, 0, 0.15);
+    z-index: 5;
+}
+
+.marquee-text-track {
+    display: flex;
+    animation: scrollText 30s linear infinite;
+}
+
+.marquee-text-item {
+    font-size: 2.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    padding-right: 2rem;
+}
+
+.marquee-dot {
+    margin-left: 2rem;
+    color: rgba(0, 0, 0, 0.4);
+}
+
+@keyframes scrollText {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+
+    /* Scrolls exactly half the duplicated content */
+}
+
+/* Light mode overrides for text marquee */
+body.light-mode .marquee-text-container {
+    box-shadow: 0 10px 30px rgba(255, 204, 0, 0.3);
+}

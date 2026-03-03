@@ -1,0 +1,211 @@
+/* Hero.css */
+.hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 6rem 0 3rem;
+    /* Reduced from 8rem 0 4rem */
+}
+
+/* Redixo style intense radial gradient behind the text */
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80vw;
+    height: 80vh;
+    background: radial-gradient(circle, rgba(255, 204, 0, 0.08) 0%, transparent 60%);
+    z-index: 1;
+    pointer-events: none;
+}
+
+.hero-container {
+    position: relative;
+    z-index: 10;
+}
+
+.hero-content-centered {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hero-badge-wrap {
+    margin-bottom: 2rem;
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    background-color: rgba(128, 128, 128, 0.1);
+    border: 1px solid var(--color-border);
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.badge-pulse {
+    width: 8px;
+    height: 8px;
+    background-color: #00C853;
+    /* Active green */
+    border-radius: 50%;
+    box-shadow: 0 0 10px #00C853;
+    animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGreen {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7);
+    }
+
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(0, 200, 83, 0);
+    }
+
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(0, 200, 83, 0);
+    }
+}
+
+/* Redixo Typography Style */
+.hero-title-massive {
+    font-size: 5.5rem;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1.05;
+    margin-bottom: 2rem;
+    color: var(--color-text);
+}
+
+.text-italic-serif {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--color-primary);
+}
+
+.hero-subtitle-large {
+    font-size: 1.35rem;
+    color: var(--color-text-muted);
+    margin-bottom: 3.5rem;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+}
+
+.hero-cta-centered {
+    margin-bottom: 5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-pill {
+    border-radius: 50px !important;
+    padding: 1.2rem 2.5rem !important;
+    font-size: 1.15rem !important;
+}
+
+.cta-subtext {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+}
+
+.hero-stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 4rem;
+    width: 100%;
+    border-top: 1px solid var(--color-border);
+    padding-top: 3rem;
+}
+
+.stat-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+    letter-spacing: -1px;
+}
+
+.stat-label {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+}
+
+/* Adjustments for Nest Hub Max / Standard Laptops (Displays <= 850px height) */
+@media (max-height: 850px) {
+    .hero-title-massive {
+        font-size: 3.8rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .hero-subtitle-large {
+        font-size: 1.15rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .hero-cta-centered {
+        margin-bottom: 3.5rem;
+    }
+
+    .hero-stats-row {
+        padding-top: 2rem;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .hero-title-massive {
+        font-size: 4rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-title-massive {
+        font-size: 3rem;
+    }
+
+    .hero-subtitle-large {
+        font-size: 1.1rem;
+    }
+
+    .hero-stats-row {
+        flex-direction: column;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .stat-block {
+        align-items: center;
+        text-align: center;
+    }
+}

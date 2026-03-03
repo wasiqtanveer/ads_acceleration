@@ -1,0 +1,184 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Brand Colors */
+  --color-primary: #FFCC00;
+  /* Amazon-style Yellow */
+  --color-primary-hover: #E6B800;
+  --color-accent: #E50914;
+  /* Deep Red for urgent CTA / Alerts */
+  --color-bg-dark: #0A0A0A;
+  /* Pure Blackish */
+  --color-bg-card: #141414;
+  /* Slightly lighter for cards */
+  --color-bg-light: #F5F5F5;
+  --color-text: #FFFFFF;
+  --color-text-muted: #A0A0A0;
+  --color-border: #2A2A2A;
+
+  /* Typography */
+  --font-family: 'Inter', sans-serif;
+
+  /* Utils */
+  --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  --border-radius: 8px;
+  --border-radius-lg: 16px;
+}
+
+/* Light Mode Overrides */
+body.light-mode {
+  --color-bg-dark: #F8F9FA;
+  --color-bg-card: #FFFFFF;
+  --color-bg-light: #E9ECEF;
+  --color-text: #111111;
+  --color-text-muted: #555555;
+  --color-border: #E0E0E0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-bg-dark);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+  transition: background-color 0.4s ease, color 0.4s ease;
+  overflow-x: hidden;
+}
+
+/* Constantly moving ambient background */
+body::after {
+  content: "";
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(255, 204, 0, 0.02) 0%, transparent 40%),
+    radial-gradient(circle at 80% 20%, rgba(229, 9, 20, 0.02) 0%, transparent 30%);
+  z-index: -1;
+  pointer-events: none;
+  animation: bgFloat 25s ease-in-out infinite alternate;
+}
+
+@keyframes bgFloat {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  50% {
+    transform: translate(-3%, 3%) rotate(3deg);
+  }
+
+  100% {
+    transform: translate(3%, -3%) rotate(-3deg);
+  }
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Global Button Styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.8rem;
+  border-radius: 50px;
+  /* Pill shape standard */
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* Magnetic feel */
+  cursor: pointer;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #FFA000 100%);
+  color: #000;
+  box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #FFD633 0%, #FFB300 100%);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(255, 204, 0, 0.5);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-outline:hover {
+  background-color: var(--color-bg-card);
+  border-color: var(--color-text-muted);
+}
+
+/* Container */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 3.5rem;
+}
+
+h2 {
+  font-size: 2.5rem;
+}
+
+h3 {
+  font-size: 1.75rem;
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2.5rem;
+  }
+
+  h2 {
+    font-size: 2rem;
+  }
+}
+
+.section {
+  padding: 5rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Distinguish alternating sections */
+section:nth-of-type(even) {
+  background-color: rgba(255, 255, 255, 0.015);
+}
+
+body.light-mode section:nth-of-type(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
