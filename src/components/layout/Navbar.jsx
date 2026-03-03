@@ -17,6 +17,16 @@ const Navbar = () => {
         setIsOpen(false);
     };
 
+    const handleHomeClick = (e) => {
+        // If already on the homepage according to hash routing, scroll up.
+        // HashRouter URLs look like `/#/`
+        if (window.location.hash === '#/' || window.location.hash === '') {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        setIsOpen(false);
+    };
+
     return (
         <nav className="navbar">
             <div className="container navbar-container">
@@ -27,7 +37,7 @@ const Navbar = () => {
 
                 {/* Desktop Menu */}
                 <div className="navbar-menu">
-                    <Link to="/" className="nav-link">Home</Link>
+                    <Link to="/" className="nav-link" onClick={handleHomeClick}>Home</Link>
                     <a href="#features" onClick={(e) => scrollToSection(e, 'features')} className="nav-link">About</a>
                     <Link to="/tools" className="nav-link nav-link-highlight">Tools</Link>
                     <a href="#testimonials" onClick={(e) => scrollToSection(e, 'testimonials')} className="nav-link">Testimonials</a>
@@ -52,7 +62,7 @@ const Navbar = () => {
             {/* Mobile Menu */}
             {isOpen && (
                 <div className="mobile-menu">
-                    <Link to="/" className="mobile-link" onClick={() => setIsOpen(false)}>Home</Link>
+                    <Link to="/" className="mobile-link" onClick={handleHomeClick}>Home</Link>
                     <a href="#features" onClick={(e) => scrollToSection(e, 'features')} className="mobile-link">About</a>
                     <Link to="/tools" className="mobile-link nav-link-highlight-mobile" onClick={() => setIsOpen(false)}>Tools</Link>
                     <a href="#testimonials" onClick={(e) => scrollToSection(e, 'testimonials')} className="mobile-link">Testimonials</a>
