@@ -39,6 +39,15 @@ body.light-mode .navbar {
 .navbar-menu {
     display: flex;
     gap: 2rem;
+    align-items: center;
+    /* Ensure alignment with the new divider */
+}
+
+.nav-divider {
+    height: 24px;
+    width: 2px;
+    background-color: var(--color-border);
+    margin: 0 0.5rem;
 }
 
 .nav-link {
@@ -46,24 +55,53 @@ body.light-mode .navbar {
     font-weight: 500;
     color: var(--color-text-muted);
     transition: var(--transition);
+    position: relative;
+    /* For the active underline effect if desired, but we will use color */
 }
 
 .nav-link:hover {
     color: var(--color-text);
 }
 
-.nav-link-highlight {
-    background: linear-gradient(90deg, #FFCC00 0%, #E6B800 100%);
-    color: #000 !important;
-    padding: 0.4rem 1rem;
-    border-radius: 20px;
+/* ScrollSpy Active State */
+.nav-link.active {
+    color: var(--color-primary);
     font-weight: 700;
-    box-shadow: 0 4px 15px rgba(255, 204, 0, 0.2);
 }
 
-.nav-link-highlight:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 204, 0, 0.4);
+/* Animated Glowing Premium Link */
+.nav-link-premium {
+    background: linear-gradient(270deg, #FFCC00, #E50914, #FFA000, #FFCC00);
+    background-size: 300% 300%;
+    color: #000 !important;
+    padding: 0.45rem 1.25rem;
+    border-radius: 50px;
+    font-weight: 700;
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.4);
+    animation: gradientGlow 4s ease infinite;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.nav-link-premium:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 0 25px rgba(255, 204, 0, 0.6);
+}
+
+@keyframes gradientGlow {
+    0% {
+        background-position: 0% 50%;
+        box-shadow: 0 0 15px rgba(255, 204, 0, 0.3);
+    }
+
+    50% {
+        background-position: 100% 50%;
+        box-shadow: 0 0 25px rgba(229, 9, 20, 0.4);
+    }
+
+    100% {
+        background-position: 0% 50%;
+        box-shadow: 0 0 15px rgba(255, 204, 0, 0.3);
+    }
 }
 
 .navbar-auth {
@@ -107,13 +145,43 @@ body.light-mode .navbar {
 }
 
 .mobile-link {
-    padding: 1rem 0;
+    padding: 1.25rem 0;
     border-bottom: 1px solid var(--color-border);
     font-weight: 500;
+    font-size: 1.1rem;
+    transition: color 0.3s ease;
+}
+
+.mobile-link.active {
+    color: var(--color-primary);
+    font-weight: 700;
 }
 
 .mobile-link:last-child {
     border-bottom: none;
+}
+
+.mobile-divider {
+    height: 1px;
+    width: 100%;
+    background-color: var(--color-border);
+    margin: 1rem 0;
+}
+
+.nav-link-premium-mobile {
+    display: inline-block;
+    align-self: flex-start;
+    background: linear-gradient(270deg, #FFCC00, #E50914, #FFA000, #FFCC00);
+    background-size: 300% 300%;
+    color: #000 !important;
+    padding: 0.5rem 1.5rem;
+    border-radius: 50px;
+    font-weight: 700;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    animation: gradientGlow 4s ease infinite;
+    text-align: center;
+    border: none;
 }
 
 @media (max-width: 900px) {
