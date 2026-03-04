@@ -1,0 +1,564 @@
+/* LeadCapturePage.css
+   Scoped styles for the standalone lead capture page.
+   Uses existing brand CSS variables for consistency. */
+
+.lead-page {
+    min-height: 100vh;
+    background-color: var(--color-bg-dark);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Ambient background matching the main site */
+.lead-page::before {
+    content: "";
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background:
+        radial-gradient(circle at 20% 30%, rgba(255, 204, 0, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(229, 9, 20, 0.04) 0%, transparent 50%);
+    z-index: 0;
+    pointer-events: none;
+    animation: leadBgFloat 20s ease-in-out infinite alternate;
+}
+
+@keyframes leadBgFloat {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    100% {
+        transform: translate(2%, -2%);
+    }
+}
+
+/* =====================
+   Minimal Header
+   ===================== */
+.lead-header {
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.lead-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--color-text);
+    text-decoration: none;
+    letter-spacing: -0.5px;
+    transition: opacity 0.3s ease;
+}
+
+.lead-logo:hover {
+    opacity: 0.8;
+}
+
+.lead-logo-icon {
+    color: var(--color-primary);
+}
+
+.lead-logo-highlight {
+    color: var(--color-primary);
+}
+
+/* =====================
+   Main Content
+   ===================== */
+.lead-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.lead-card {
+    width: 100%;
+    max-width: 560px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    padding: 3.5rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Premium top glow accent */
+.lead-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-accent), var(--color-primary));
+}
+
+/* =====================
+   Hero Content
+   ===================== */
+.lead-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255, 204, 0, 0.1);
+    border: 1px solid rgba(255, 204, 0, 0.3);
+    color: var(--color-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 0.4rem 1rem;
+    border-radius: 50px;
+    margin-bottom: 1.5rem;
+}
+
+.lead-headline {
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--color-text);
+    margin-bottom: 1rem;
+    letter-spacing: -0.5px;
+}
+
+.lead-headline .highlight-yellow {
+    color: var(--color-primary);
+}
+
+.lead-headline .highlight-red {
+    color: var(--color-accent);
+}
+
+.lead-sub {
+    color: var(--color-text-muted);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin-bottom: 2.5rem;
+}
+
+/* =====================
+   Form
+   ===================== */
+.lead-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Name Row Grid */
+.lead-name-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 480px) {
+    .lead-name-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.lead-input-wrapper {
+    position: relative;
+}
+
+.lead-input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.lead-input {
+    width: 100%;
+    padding: 1rem 1rem 1rem 3rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--border-radius);
+    color: var(--color-text);
+    font-size: 1rem;
+    font-family: var(--font-family);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    outline: none;
+}
+
+.lead-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.lead-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.1);
+}
+
+.lead-input.error {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.1);
+}
+
+.lead-error {
+    color: var(--color-accent);
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: -0.3rem;
+}
+
+.lead-submit-btn {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--color-primary), #FFA000);
+    color: #000;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: var(--font-family);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    box-shadow: 0 4px 20px rgba(255, 204, 0, 0.3);
+}
+
+.lead-submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(255, 204, 0, 0.45);
+}
+
+.lead-submit-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.lead-submit-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Checkbox Styles */
+.lead-checkbox-wrapper {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.lead-checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    line-height: 1.4;
+    user-select: none;
+}
+
+.lead-checkbox-label input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.lead-checkbox-custom {
+    position: relative;
+    top: 2px;
+    height: 18px;
+    width: 18px;
+    min-width: 18px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1.5px solid var(--color-border);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.lead-checkbox-label:hover input~.lead-checkbox-custom {
+    border-color: var(--color-primary);
+}
+
+.lead-checkbox-label input:checked~.lead-checkbox-custom {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.lead-checkbox-custom:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid #000;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.lead-checkbox-label input:checked~.lead-checkbox-custom:after {
+    display: block;
+}
+
+.lead-terms-link {
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    font-family: inherit;
+    transition: opacity 0.2s ease;
+}
+
+.lead-terms-link:hover {
+    opacity: 0.8;
+}
+
+/* Loading spinner */
+.lead-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* =====================
+   Trust Signal
+   ===================== */
+.lead-trust {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    margin-top: 1rem;
+}
+
+/* =====================
+   Success State
+   ===================== */
+.lead-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.5rem;
+    padding: 1rem 0;
+}
+
+.success-icon-ring {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255, 204, 0, 0.1);
+    border: 2px solid rgba(255, 204, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+}
+
+.lead-success h2 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--color-text);
+}
+
+.lead-success p {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 380px;
+}
+
+.lead-success-btn {
+    padding: 0.9rem 2rem;
+    background: linear-gradient(135deg, var(--color-primary), #FFA000);
+    color: #000;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: var(--font-family);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 20px rgba(255, 204, 0, 0.3);
+    text-decoration: none;
+}
+
+.lead-success-btn.disabled {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-muted);
+    box-shadow: none;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.lead-success-btn:hover:not(.disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(255, 204, 0, 0.45);
+}
+
+.lead-success-back {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: var(--font-family);
+    transition: color 0.2s ease;
+    text-decoration: underline;
+}
+
+.lead-success-back:hover {
+    color: var(--color-text);
+}
+
+/* =====================
+   Footer
+   ===================== */
+.lead-footer {
+    padding: 1.5rem 2rem;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    z-index: 1;
+    position: relative;
+    border-top: 1px solid var(--color-border);
+}
+
+/* =====================
+   Modal
+   ===================== */
+.lead-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.lead-modal-content {
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    width: 100%;
+    max-width: 600px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.lead-modal-close {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.lead-modal-close:hover {
+    color: var(--color-text);
+}
+
+.lead-modal-content h2 {
+    padding: 2rem 2rem 1rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin: 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.lead-modal-scroll {
+    padding: 1.5rem 2rem;
+    overflow-y: auto;
+    flex: 1;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.lead-modal-scroll p {
+    margin-bottom: 1.25rem;
+}
+
+.lead-modal-scroll p:last-child {
+    margin-bottom: 0;
+}
+
+.lead-modal-scroll strong {
+    color: var(--color-text);
+}
+
+.lead-modal-footer {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* =====================
+   Responsive
+   ===================== */
+@media (max-width: 600px) {
+    .lead-card {
+        padding: 2.5rem 1.5rem;
+        border-radius: var(--border-radius);
+    }
+
+    .lead-headline {
+        font-size: 1.7rem;
+    }
+}
