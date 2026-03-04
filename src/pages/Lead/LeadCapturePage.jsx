@@ -18,7 +18,7 @@ const TOOL_REGISTRY = {
         ),
         subText:
             'Our AI-powered Competitor Analysis Tool reveals exactly what your top competitors are doing right — keywords, visual themes, and pricing gaps — so you can outrank them, not chase them.',
-        ctaLabel: 'Get Free Access →',
+        ctaLabel: 'Get Free Access',
         toolUrl: '', // Leave empty to show "No free tool available yet"
         successMessage: "You're in! Your private access link is on its way to your inbox.",
     },

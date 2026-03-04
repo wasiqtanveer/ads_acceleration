@@ -240,7 +240,7 @@ body.light-mode .lead-page::before {
     width: 100%;
     padding: 1rem;
     background: linear-gradient(135deg, var(--color-primary), #FFA000);
-    color: #000;
+    color: #FFF;
     border: none;
     border-radius: var(--border-radius);
     font-size: 1rem;
@@ -422,7 +422,7 @@ body.light-mode .lead-page::before {
 .lead-success-btn {
     padding: 0.9rem 2rem;
     background: linear-gradient(135deg, var(--color-primary), #FFA000);
-    color: #000;
+    color: #FFF;
     border: none;
     border-radius: var(--border-radius);
     font-size: 1rem;
