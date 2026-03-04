@@ -1,7 +1,7 @@
 .marquee-text-container {
     width: 100%;
     overflow: hidden;
-    background-color: var(--color-primary);
+    background-color: var(--color-brand-yellow, #FFCC00);
     color: #000;
     padding: 1.5rem 0;
     white-space: nowrap;
@@ -48,7 +48,9 @@
 
 /* Light mode overrides for text marquee */
 body.light-mode .marquee-text-container {
-    box-shadow: 0 10px 30px rgba(255, 204, 0, 0.3);
+    background-color: var(--color-brand-red, #E50914);
+    color: #FFFFFF;
+    box-shadow: 0 10px 30px rgba(229, 9, 20, 0.3);
 }
 
 @media (max-width: 768px) {

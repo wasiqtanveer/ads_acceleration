@@ -26,13 +26,29 @@
 }
 
 /* Light Mode Overrides */
+html.light-mode,
 body.light-mode {
-  --color-bg-dark: #F8F9FA;
-  --color-bg-card: #FFFFFF;
-  --color-bg-light: #E9ECEF;
-  --color-text: #111111;
+  --color-bg-dark: #FFFFFF;
+  /* Pure white default background */
+  --color-bg-card: #F9F9FB;
+  /* Very light grey for cards/sections */
+  --color-bg-light: #F0F2F5;
+  --color-text: #1A1A1A;
+  /* Very dark gray for readability */
   --color-text-muted: #555555;
-  --color-border: #E0E0E0;
+  --color-border: #E5E7EB;
+  /* Softer border for light mode */
+
+  /* Retain brand colors */
+  --color-primary: #E50914;
+  /* Red becomes primary action color in Light Mode */
+  --color-primary-hover: #CC0812;
+  --color-accent: #FFCC00;
+  /* Yellow becomes the secondary accent */
+
+  /* Create dedicated variables for gradients that shouldn't flip */
+  --color-brand-red: #E50914;
+  --color-brand-yellow: #FFCC00;
 }
 
 html {
@@ -68,24 +84,36 @@ body::after {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at center, rgba(255, 204, 0, 0.02) 0%, transparent 40%),
-    radial-gradient(circle at 80% 20%, rgba(229, 9, 20, 0.02) 0%, transparent 30%);
+  /* Dark mode default - very faint red/yellow accents */
+  background:
+    radial-gradient(circle at 30% 70%, rgba(229, 9, 20, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 70% 30%, rgba(255, 204, 0, 0.03) 0%, transparent 40%);
   z-index: -1;
   pointer-events: none;
-  animation: bgFloat 25s ease-in-out infinite alternate;
+  animation: bgDrift 30s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
 }
 
-@keyframes bgFloat {
+body.light-mode::after {
+  /* Light mode - Make background much more vibrant and noticeable without ruining text */
+  background:
+    radial-gradient(circle at 10% 80%, rgba(229, 9, 20, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 90% 20%, rgba(255, 204, 0, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
+  background-color: #F8F9FA;
+  /* Slightly off-white base to let gradients pop more */
+}
+
+@keyframes bgDrift {
   0% {
-    transform: translate(0, 0) rotate(0deg);
+    transform: translate(0, 0) scale(1);
   }
 
   50% {
-    transform: translate(-3%, 3%) rotate(3deg);
+    transform: translate(-2%, 2%) scale(1.05);
   }
 
   100% {
-    transform: translate(3%, -3%) rotate(-3deg);
+    transform: translate(2%, -2%) scale(1);
   }
 }
 
@@ -117,34 +145,55 @@ a {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #FFA000 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
   color: #000;
   box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #FFD633 0%, #FFB300 100%);
   transform: translateY(-4px) scale(1.02);
   box-shadow: 0 10px 25px rgba(255, 204, 0, 0.5);
+  filter: brightness(1.1);
 }
 
-/* Custom Webkit Scrollbar */
-html::-webkit-scrollbar {
+/* Make text white on red button in light mode */
+body.light-mode .btn-primary {
+  color: #FFF;
+  box-shadow: 0 4px 15px rgba(229, 9, 20, 0.3);
+}
+
+body.light-mode .btn-primary:hover {
+  box-shadow: 0 10px 25px rgba(229, 9, 20, 0.4);
+}
+
+::-webkit-scrollbar {
   width: 10px;
 }
 
-html::-webkit-scrollbar-track {
-  background: var(--color-bg-dark);
+::-webkit-scrollbar-track {
+  background: #0A0A0A;
   border-left: 1px solid var(--color-border);
 }
 
-html::-webkit-scrollbar-thumb {
-  background: var(--color-primary);
+::-webkit-scrollbar-thumb {
+  background: #FFCC00;
   border-radius: 5px;
 }
 
-html::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary-hover);
+::-webkit-scrollbar-thumb:hover {
+  background: #E6B800;
+}
+
+html.light-mode::-webkit-scrollbar-track {
+  background: #FFFFFF !important;
+}
+
+html.light-mode::-webkit-scrollbar-thumb {
+  background: #E50914 !important;
+}
+
+html.light-mode::-webkit-scrollbar-thumb:hover {
+  background: #CC0812 !important;
 }
 
 .btn-outline {
@@ -199,13 +248,49 @@ h3 {
 .section {
   padding: 5rem 0;
   border-bottom: 1px solid var(--color-border);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Give all sections a live glowing orb similar to Hero */
+.section::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle, rgba(255, 204, 0, 0.04) 0%, transparent 60%);
+  z-index: 0;
+  pointer-events: none;
+  animation: sectionPulse 15s ease-in-out infinite alternate;
+}
+
+body.light-mode .section::before {
+  background: radial-gradient(circle, rgba(229, 9, 20, 0.06) 0%, transparent 65%);
+}
+
+@keyframes sectionPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 1;
+  }
 }
 
 /* Distinguish alternating sections */
 section:nth-of-type(even) {
   background-color: rgba(255, 255, 255, 0.015);
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
+/* In Light Mode, even sections get a very subtle tint to separate from pure white */
 body.light-mode section:nth-of-type(even) {
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: var(--color-bg-card);
 }
