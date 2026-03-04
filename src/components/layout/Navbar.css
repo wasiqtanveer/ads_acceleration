@@ -56,7 +56,8 @@ body.light-mode .navbar {
     color: var(--color-text-muted);
     transition: var(--transition);
     position: relative;
-    /* For the active underline effect if desired, but we will use color */
+    padding: 0.5rem 0;
+    /* Add padding to accommodate indicator */
 }
 
 .nav-link:hover {
@@ -67,6 +68,18 @@ body.light-mode .navbar {
 .nav-link.active {
     color: var(--color-primary);
     font-weight: 700;
+}
+
+/* Framer Motion Sliding Indicator */
+.nav-indicator {
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: var(--color-primary);
+    border-radius: 50px;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
 }
 
 /* Animated Glowing Premium Link */

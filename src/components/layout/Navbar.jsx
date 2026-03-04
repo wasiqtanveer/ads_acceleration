@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Rocket, Sun, Moon } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useTheme } from '../../context/ThemeContext';
 import './Navbar.css';
 
@@ -91,10 +92,22 @@ const Navbar = () => {
 
                 {/* Desktop Menu */}
                 <div className="navbar-menu">
-                    <Link to="/" onClick={handleHomeClick} className={`nav-link ${activeSection === 'home' ? 'active' : ''}`}>Home</Link>
-                    <a href="#features" onClick={(e) => scrollToSection(e, 'features')} className={`nav-link ${activeSection === 'features' ? 'active' : ''}`}>About</a>
-                    <a href="#testimonials" onClick={(e) => scrollToSection(e, 'testimonials')} className={`nav-link ${activeSection === 'testimonials' ? 'active' : ''}`}>Testimonials</a>
-                    <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} className={`nav-link ${activeSection === 'faq' ? 'active' : ''}`}>FAQ</a>
+                    <Link to="/" onClick={handleHomeClick} className={`nav-link ${activeSection === 'home' ? 'active' : ''}`}>
+                        <span>Home</span>
+                        {activeSection === 'home' && <motion.div layoutId="nav-indicator" className="nav-indicator" />}
+                    </Link>
+                    <a href="#features" onClick={(e) => scrollToSection(e, 'features')} className={`nav-link ${activeSection === 'features' ? 'active' : ''}`}>
+                        <span>About</span>
+                        {activeSection === 'features' && <motion.div layoutId="nav-indicator" className="nav-indicator" />}
+                    </a>
+                    <a href="#testimonials" onClick={(e) => scrollToSection(e, 'testimonials')} className={`nav-link ${activeSection === 'testimonials' ? 'active' : ''}`}>
+                        <span>Testimonials</span>
+                        {activeSection === 'testimonials' && <motion.div layoutId="nav-indicator" className="nav-indicator" />}
+                    </a>
+                    <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} className={`nav-link ${activeSection === 'faq' ? 'active' : ''}`}>
+                        <span>FAQ</span>
+                        {activeSection === 'faq' && <motion.div layoutId="nav-indicator" className="nav-indicator" />}
+                    </a>
                     {/* Tools Links moved to the right side of the main menu, with premium glowing animation */}
                     <div className="nav-divider"></div>
                     <Link to="/tools" className="nav-link nav-link-premium">Tools</Link>
