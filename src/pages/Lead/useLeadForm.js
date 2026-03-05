@@ -33,8 +33,10 @@ const useLeadForm = (toolSlug = 'free-tool') => {
     // 'idle' = waiting for click
     // 'loading' = spinning wheel
     // 'success' = show the checkmark page
+    // 'exists' = show the return visitor page
     // 'error' = show an error message
     const [status, setStatus] = useState('idle');
+    const [visitCount, setVisitCount] = useState(1);
 
     // 3. Keep track of error messages to show the user
     const [errorMessage, setErrorMessage] = useState('');
@@ -43,29 +45,33 @@ const useLeadForm = (toolSlug = 'free-tool') => {
     // 🛑 THIS IS THE PART YOU WILL CHANGE WHEN YOU GO LIVE 🛑
     // =========================================================================
 
-    // THE FAKE SENDER (Mock):
-    // All this does is wait 1.5 seconds, then say "Ok, done!"
-    const mockSubmit = (email) =>
-        new Promise((resolve) => setTimeout(() => resolve({ ok: true }), 1500));
+    // THE REAL SENDER:
+    // Sends the data directly to Google Apps Script. 
+    // We use a POST request with 'no-cors' to completely bypass Google's strict redirect policies.
+    const submitToGoogleSheets = async (firstName, lastName, email) => {
+        const scriptUrl = import.meta.env.VITE_GOOGLE_SHEETS_WEB_APP_URL || 'https://script.google.com/macros/s/AKfycbwpHgIPoWm3dt84iAQJ2qHnas47XyT-IYn_CWtnUdoDevihRUA7mInP7eF31R8UFnEq/exec';
 
-    /* 
-    HOW TO CONNECT A REAL SERVICE LATER:
-    Instead of the fake sender above, you will use something that looks like this:
+        try {
+            await fetch(scriptUrl, {
+                method: 'POST',
+                mode: 'no-cors', // Bypasses the redirect CORS errors entirely
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    tool_requested: toolSlug
+                })
+            });
 
-    const realSubmit = async (firstName, lastName, email) => {
-        // Example: Sending the data to your custom backend server
-        return await fetch('https://your-backend-api.com/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                firstName: firstName,
-                lastName: lastName,
-                email: email,
-                tool_requested: toolSlug // Tells your server WHICH tool they asked for
-            })
-        });
+            // Because of no-cors, we get an opaque response back (we can't read the JSON).
+            // As long as the fetch didn't throw a network error, we assume it reached the endpoint.
+            return { status: 'success' };
+        } catch (error) {
+            console.error("Error submitting to Google Sheets:", error);
+            throw error;
+        }
     };
-    */
     // =========================================================================
 
     // This is the function that runs the moment the user clicks the "Submit" button
@@ -105,15 +111,12 @@ const useLeadForm = (toolSlug = 'free-tool') => {
         setStatus('loading');
 
         try {
-            // ---> SEND THE EMAIL <---
-            // Change "mockSubmit" to "realSubmit" when your backend is ready!
-            const result = await mockSubmit(email);
+            // ---> SEND THE LEAD DATA TO GOOGLE SHEETS <---
+            const result = await submitToGoogleSheets(firstName, lastName, email);
 
-            if (result.ok) {
-                // If the server says success, trigger the checkmark animation!
+            if (result.status === 'success') {
                 setStatus('success');
             } else {
-                // If the server rejected it (like they are already subscribed)
                 throw new Error('Submission failed.');
             }
         } catch {
@@ -139,7 +142,7 @@ const useLeadForm = (toolSlug = 'free-tool') => {
         lastName, setLastName,
         email, setEmail,
         acceptedTerms, setAcceptedTerms,
-        status, errorMessage, handleSubmit, reset
+        status, visitCount, errorMessage, handleSubmit, reset
     };
 };
 

@@ -70,6 +70,10 @@ body.light-mode .navbar {
     font-weight: 700;
 }
 
+body.light-mode .nav-link.active {
+    color: var(--color-brand-red, #E50914);
+}
+
 /* Framer Motion Sliding Indicator */
 .nav-indicator {
     position: absolute;
@@ -80,6 +84,11 @@ body.light-mode .navbar {
     background-color: var(--color-primary);
     border-radius: 50px;
     box-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
+}
+
+body.light-mode .nav-indicator {
+    background-color: var(--color-brand-red, #E50914);
+    box-shadow: 0 0 8px rgba(229, 9, 20, 0.5);
 }
 
 /* Animated Glowing Premium Link */

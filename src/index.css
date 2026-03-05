@@ -96,8 +96,8 @@ body::after {
 body.light-mode::after {
   /* Light mode - Make background much more vibrant and noticeable without ruining text */
   background:
-    radial-gradient(circle at 10% 80%, rgba(229, 9, 20, 0.08) 0%, transparent 60%),
-    radial-gradient(circle at 90% 20%, rgba(255, 204, 0, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 10% 80%, rgba(229, 9, 20, 0.15) 0%, transparent 60%),
+    radial-gradient(circle at 90% 20%, rgba(255, 204, 0, 0.15) 0%, transparent 60%),
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
   background-color: #F8F9FA;
   /* Slightly off-white base to let gradients pop more */
@@ -268,7 +268,7 @@ h3 {
 }
 
 body.light-mode .section::before {
-  background: radial-gradient(circle, rgba(229, 9, 20, 0.06) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(229, 9, 20, 0.12) 0%, transparent 65%);
 }
 
 @keyframes sectionPulse {

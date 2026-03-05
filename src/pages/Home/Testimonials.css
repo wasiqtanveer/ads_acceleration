@@ -19,6 +19,147 @@
     pointer-events: none;
 }
 
+/* Ambient Background Marquee */
+.testimonials-bg-marquee {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.5rem;
+    transform: rotate(-3deg) scale(1.2);
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.03;
+    /* Very faint so it acts as texture */
+}
+
+/* Higher opacity for Light Mode */
+body.light-mode .testimonials-bg-marquee {
+    opacity: 0.04;
+    color: var(--color-primary);
+    /* Red tint in light mode */
+}
+
+.testimonials-bg-track {
+    display: flex;
+    width: max-content;
+    will-change: transform;
+}
+
+/* Track speeds */
+.track-1 {
+    animation: testScrollLeft 35s linear infinite;
+}
+
+.track-2 {
+    animation: testScrollRight 50s linear infinite;
+}
+
+.track-3 {
+    animation: testScrollLeft 25s linear infinite;
+}
+
+.track-4 {
+    animation: testScrollRight 70s linear infinite;
+}
+
+.testimonials-bg-content {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    text-transform: uppercase;
+    font-weight: 900;
+    letter-spacing: -2px;
+}
+
+/* Size Variations */
+.size-xl {
+    font-size: 14rem;
+    opacity: 0.4;
+    line-height: 0.8;
+}
+
+.size-lg {
+    font-size: 8rem;
+    opacity: 0.8;
+}
+
+.size-md {
+    font-size: 5rem;
+    opacity: 1;
+    letter-spacing: 2px;
+}
+
+.size-sm {
+    font-size: 3rem;
+    opacity: 0.6;
+    letter-spacing: 4px;
+}
+
+/* Hollow Text Effect */
+.hollow {
+    color: transparent !important;
+    -webkit-text-stroke: 2px var(--color-text);
+}
+
+body.light-mode .hollow {
+    -webkit-text-stroke: 2px var(--color-primary);
+}
+
+.testimonials-bg-content .dot {
+    margin: 0 3rem;
+    color: var(--color-primary);
+}
+
+/* Specific dot sizing based on track size to prevent weird spacing */
+.size-xl .dot {
+    font-size: 6rem;
+    margin: 0 4rem;
+}
+
+.size-lg .dot {
+    font-size: 4rem;
+    margin: 0 3rem;
+}
+
+.size-md .dot {
+    font-size: 2.5rem;
+    margin: 0 2rem;
+}
+
+.size-sm .dot {
+    font-size: 1.5rem;
+    margin: 0 1.5rem;
+}
+
+@keyframes testScrollLeft {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-33.333%);
+    }
+
+    /* Translates 1/3 since triplicated */
+}
+
+@keyframes testScrollRight {
+    0% {
+        transform: translateX(-33.333%);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
+}
+
 .testimonials-header {
     margin-bottom: 4rem;
     position: relative;
@@ -245,8 +386,8 @@
    Light Mode Overrides 
    ===================== */
 body.light-mode .testimonial-card {
-    background: linear-gradient(135deg, rgba(229, 9, 20, 0.05) 0%, rgba(229, 9, 20, 0.12) 100%);
-    border-color: rgba(229, 9, 20, 0.2);
+    background: linear-gradient(135deg, rgba(229, 9, 20, 0.10) 0%, rgba(229, 9, 20, 0.22) 100%);
+    border-color: rgba(229, 9, 20, 0.3);
 }
 
 /* Light mode hover spotlight: distinct white glow instead of yellow */

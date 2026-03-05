@@ -191,7 +191,7 @@ const LeadCapturePage = () => {
                             </div>
                         </motion.div>
                     ) : (
-                        /* ── SUCCESS STATE ── */
+                        /* ── SUCCESS / RETURN STATE ── */
                         <motion.div
                             key="success"
                             className="lead-card"
@@ -212,7 +212,6 @@ const LeadCapturePage = () => {
                                 </div>
 
                                 <h2>You're all set! 🎉</h2>
-
                                 <p>{tool.successMessage}</p>
 
                                 {/* Primary CTA — goto the tool */}

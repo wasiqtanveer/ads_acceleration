@@ -88,6 +88,54 @@ const Testimonials = () => {
 
     return (
         <section className="testimonials section" id="testimonials">
+            {/* Ambient Background Marquee - Multi-track chaotic texture */}
+            <div className="testimonials-bg-marquee">
+                {/* Track 1: Fast, Left, Massive */}
+                <div className="testimonials-bg-track track-1">
+                    {[1, 2, 3].map((set) => (
+                        <div key={set} className="testimonials-bg-content size-lg">
+                            <span>BRAVO</span><span className="dot">•</span>
+                            <span>SATISFIED</span><span className="dot">•</span>
+                            <span>OUTSTANDING</span><span className="dot">•</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Track 2: Slow, Right, Medium */}
+                <div className="testimonials-bg-track track-2 reverse">
+                    {[1, 2, 3].map((set) => (
+                        <div key={set} className="testimonials-bg-content size-md">
+                            <span>EXCEPTIONAL</span><span className="dot">•</span>
+                            <span>GAME CHANGER</span><span className="dot">•</span>
+                            <span>IMPRESSIVE</span><span className="dot">•</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Track 3: Medium, Left, Small */}
+                <div className="testimonials-bg-track track-3">
+                    {[1, 2, 3].map((set) => (
+                        <div key={set} className="testimonials-bg-content size-sm">
+                            <span>ABSOLUTE MAGIC</span><span className="dot">•</span>
+                            <span>FIVE STARS</span><span className="dot">•</span>
+                            <span>HIGHLY RECOMMEND</span><span className="dot">•</span>
+                            <span>INCREDIBLE ROI</span><span className="dot">•</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Track 4: Very Slow, Right, Massive Hollow */}
+                <div className="testimonials-bg-track track-4 reverse">
+                    {[1, 2, 3].map((set) => (
+                        <div key={set} className="testimonials-bg-content size-xl hollow">
+                            <span>PROVEN</span><span className="dot">•</span>
+                            <span>TRUSTED</span><span className="dot">•</span>
+                            <span>RESULTS</span><span className="dot">•</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             <div className="container">
                 <motion.div
                     className="testimonials-header text-center"
