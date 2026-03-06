@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, ChevronDown, Download, AlertCircle, Settings, X, FileSpreadsheet } from 'lucide-react';
 import './BiddingOptimizer.css';
 import * as XLSX from 'xlsx';
@@ -40,11 +40,18 @@ const BiddingOptimizer = () => {
 
         setError('');
         setFile(uploadedFile);
-        parseExcelInfo(uploadedFile);
     };
 
     // Maintain the modified workbook data in memory for exporting later
     const [workbookData, setWorkbookData] = useState(null);
+
+    // Re-parse when file or settings change
+    useEffect(() => {
+        if (file) {
+            parseExcelInfo(file);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [file, adType, strategy, targetRpc, minBid, maxBid]);
 
     const parseExcelInfo = (uploadedFile) => {
         setIsParsing(true);
@@ -198,7 +205,7 @@ const BiddingOptimizer = () => {
 
                         const historicalRpc = clicks > 0 ? sales / clicks : 0;
 
-                        if (clicks <= 3) {
+                        if (strategy === 'inch-up-rpc' && clicks <= 3) {
                             reason = `Inch Up: ${clicks} clicks - Data collection phase`;
                             ruleCategory = 'Inch Up';
                             suggestedBid = originalBid * 1.10;
@@ -314,18 +321,54 @@ const BiddingOptimizer = () => {
     };
 
     const handleExport = () => {
-        if (!workbookData) return;
+        if (!workbookData || results.length === 0) return;
 
         try {
-            // Convert our modified JSON array back to a worksheet
-            const newWorksheet = XLSX.utils.json_to_sheet(workbookData.modifiedJson);
+            // Create a new array of objects for the export containing ONLY modified rows
+            const exportData = results.map(item => {
+                const row = workbookData.modifiedJson[item.id];
 
-            // Replace the old sheet with the new one in the workbook
-            workbookData.originalWorkbook.Sheets[workbookData.sheetName] = newWorksheet;
+                // Clone the row so we don't mutate the original in memory
+                const exportRow = { ...row };
+
+                // Set Operation to Update
+                exportRow['Operation'] = 'Update';
+
+                // Ensure Bid is appropriately set to the suggested bid
+                const bidKeys = ['Bid', 'Max Bid', 'Keyword Bid', 'Targeting Bid'];
+                const rowKeys = Object.keys(exportRow);
+                let bidUpdated = false;
+                for (const bk of bidKeys) {
+                    const matchKey = rowKeys.find(k => k.toLowerCase() === bk.toLowerCase());
+                    if (matchKey) {
+                        exportRow[matchKey] = item.suggestedBid;
+                        bidUpdated = true;
+                        break;
+                    }
+                }
+                if (!bidUpdated) exportRow['Bid'] = item.suggestedBid;
+
+                // Append custom tracking columns
+                exportRow['Condition'] = item.reason;
+                exportRow['Bid Type'] = item.ruleCategory;
+                exportRow['Old Bid'] = item.originalBid;
+                exportRow['Bid Adjust'] = item.changePct;
+                exportRow['Min Bid'] = minBid;
+                exportRow['Max Bid'] = maxBid;
+
+                return exportRow;
+            });
+
+            // Convert our export data back to a new worksheet
+            const newWorksheet = XLSX.utils.json_to_sheet(exportData);
+
+            // Create a new workbook with just the optimized sheet
+            const newWorkbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, workbookData.sheetName);
 
             // Generate Excel file and trigger download
             const fileName = `Optimized_${file.name}`;
-            XLSX.writeFile(workbookData.originalWorkbook, fileName);
+            XLSX.writeFile(newWorkbook, fileName);
 
         } catch (err) {
             console.error(err);
@@ -764,7 +807,7 @@ const BiddingOptimizer = () => {
                                                         if (col.key === 'changePct') {
                                                             return (
                                                                 <td key={col.key} className="pop-td">
-                                                                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${val > 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'}`}>
+                                                                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${val > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : val < 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                                                                         {val > 0 ? '+' : ''}{val.toFixed(1)}%
                                                                     </span>
                                                                 </td>
