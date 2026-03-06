@@ -1,7 +1,7 @@
-/* Hide default cursor globally */
-body,
-a,
-button {
+/* Hide default cursor only when the custom cursor is active */
+body.custom-cursor-active,
+body.custom-cursor-active a,
+body.custom-cursor-active button {
     cursor: none !important;
 }
 

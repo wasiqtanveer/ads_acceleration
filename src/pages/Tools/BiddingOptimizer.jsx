@@ -55,11 +55,47 @@ const BiddingOptimizer = () => {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
 
-                // Assuming data is in the first sheet for Amazon Bulk Ops formats,
-                // or the sheet named 'Sponsored Products Campaigns'
-                const sheetName = workbook.SheetNames.includes('Sponsored Products Campaigns')
-                    ? 'Sponsored Products Campaigns'
-                    : workbook.SheetNames[0];
+                // Log all available sheets in the file for debugging
+                console.log('=== AVAILABLE SHEETS IN WORKBOOK ===', workbook.SheetNames);
+
+                // Map adType UI value to the expected Amazon Bulk Ops sheet/tab name
+                const sheetNameMap = {
+                    'sponsored-products': [
+                        'Sponsored Products Campaigns',
+                        'SP Campaigns',
+                        'Sponsored Products',
+                    ],
+                    'sponsored-brands': [
+                        'Sponsored Brands Campaigns',
+                        'SB Campaigns',
+                        'Sponsored Brands',
+                    ],
+                    'sponsored-display': [
+                        'Sponsored Display Campaigns',
+                        'SD Campaigns',
+                        'Sponsored Display',
+                    ],
+                };
+
+                const preferredNames = sheetNameMap[adType] || [];
+                const availableSheets = workbook.SheetNames;
+
+                // Try to find matching sheet (case-insensitive)
+                let sheetName = null;
+                for (const preferred of preferredNames) {
+                    const match = availableSheets.find(
+                        s => s.toLowerCase().trim() === preferred.toLowerCase().trim()
+                    );
+                    if (match) { sheetName = match; break; }
+                }
+
+                // If no match found, fall back to sheet[0]
+                if (!sheetName) {
+                    sheetName = availableSheets[0];
+                    console.warn(`No matching sheet found for adType "${adType}". Using first sheet: "${sheetName}"`);
+                } else {
+                    console.log(`Using sheet: "${sheetName}" for adType: "${adType}"`);
+                }
 
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
@@ -67,103 +103,183 @@ const BiddingOptimizer = () => {
                 const processedResults = [];
                 let modifiedData = [...jsonData]; // Copy to update bids
 
-                // Amazon bulk ops column names can vary slightly, but standardizes around these
-                // 'Entity', 'Keyword Text', 'Product Targeting ID', 'Clicks', 'Spend', 'Sales', 'Max Bid'
+                // DEBUG: Log actual column headers from the Excel file
+                if (modifiedData.length > 0) {
+                    console.log('=== EXCEL COLUMN HEADERS ===');
+                    console.log(JSON.stringify(Object.keys(modifiedData[0]), null, 2));
+                    console.log('=== ROW COUNT ===', modifiedData.length);
+                }
+
+                // Amazon bulk ops column names can vary slightly
+                // Helper: get value from row trying multiple possible column names (case-insensitive)
+                const getVal = (row, ...keys) => {
+                    const rowKeys = Object.keys(row);
+                    for (const key of keys) {
+                        // Try exact match first
+                        if (row[key] !== undefined && row[key] !== '') return row[key];
+                        // Try case-insensitive match
+                        const lower = key.toLowerCase();
+                        const match = rowKeys.find(k => k.toLowerCase() === lower);
+                        if (match && row[match] !== undefined && row[match] !== '') return row[match];
+                    }
+                    return null;
+                };
+
+                let debugLoggedFirst = false;
 
                 modifiedData.forEach((row, index) => {
-                    const entityType = row['Entity'] || '';
-                    // Only adjust bids for Keywords, Product Targeting, etc (not Campaigns or Ad Groups)
-                    if (entityType.includes('Keyword') || entityType.includes('Product Targeting') || row['Keyword Text']) {
+                    const entity = getVal(row, 'Entity', 'Record Type') || '';
+                    const entityLower = entity.toLowerCase();
 
-                        const clicks = parseFloat(row['Clicks']) || 0;
-                        const spend = parseFloat(row['Spend']) || 0;
-                        const sales = parseFloat(row['Sales']) || parseFloat(row['14 Day Total Sales']) || parseFloat(row['30 Day Total Sales']) || 0;
-                        // For bids, it might be 'Max Bid', 'Keyword Bid', or 'Targeting Bid' depending on the report type
-                        const originalBid = parseFloat(row['Max Bid']) || parseFloat(row['Keyword Bid']) || parseFloat(row['Bid']) || parseFloat(row['Targeting Bid']) || 0.50;
+                    // Only process Keyword and Product Targeting rows
+                    if (entityLower === 'keyword' || entityLower === 'product targeting') {
 
-                        // Enhanced Metrics
-                        const campaign = row['Campaign Name'] || row['Campaign'] || 'Unknown Campaign';
-                        const adGroup = row['Ad Group Name'] || row['Ad Group'] || 'Unknown Ad Group';
-                        const impressions = parseInt(row['Impressions']) || 0;
-                        const orders = parseInt(row['Orders']) || parseInt(row['14 Day Total Orders']) || parseInt(row['30 Day Total Orders']) || 0;
+                        // Read values using exact header names from the file
+                        const campaign = getVal(row,
+                            'Campaign name (Informational only)',
+                            'Campaign Name (Informational only)',
+                            'Campaign name',
+                            'Campaign Name',
+                            'Campaign'
+                        ) || '';
+
+                        const adGroup = getVal(row,
+                            'Ad group name (Informational only)',
+                            'Ad Group Name (Informational only)',
+                            'Ad group name',
+                            'Ad Group Name',
+                            'Ad Group'
+                        ) || '';
+
+                        const target = getVal(row,
+                            'Keyword text',
+                            'Keyword Text',
+                            'Product targeting expression',
+                            'Product Targeting Expression',
+                            'Targeting Expression',
+                            'Targeting',
+                            'Product Targeting ID'
+                        ) || `Row ${index + 2}`;
+
+                        const matchType = getVal(row, 'Match type', 'Match Type') || '';
+
+                        const clicks = parseFloat(getVal(row, 'Clicks') || 0);
+                        const spend = parseFloat(getVal(row, 'Spend') || 0);
+                        const sales = parseFloat(getVal(row, 'Sales', '14 Day Total Sales', '30 Day Total Sales') || 0);
+                        const impressions = parseInt(getVal(row, 'Impressions') || 0);
+                        const orders = parseInt(getVal(row, 'Orders', '14 Day Total Orders', '30 Day Total Orders') || 0);
+                        const units = parseInt(getVal(row, 'Units', '14 Day Total Units (#)', '30 Day Total Units (#)', '7 Day Total Units (#)') || 0);
+                        const originalBid = parseFloat(getVal(row, 'Bid', 'Max Bid', 'Keyword Bid', 'Targeting Bid') || 0.50);
+
+                        // DEBUG: Log first keyword/targeting row to verify column reading
+                        if (!debugLoggedFirst) {
+                            debugLoggedFirst = true;
+                            console.log('=== FIRST KEYWORD/TARGETING ROW DEBUG ===');
+                            console.log('Index:', index);
+                            console.log('Entity:', entity);
+                            console.log('Target:', target);
+                            console.log('Campaign:', campaign);
+                            console.log('Ad Group:', adGroup);
+                            console.log('Match Type:', matchType);
+                            console.log('Bid:', originalBid);
+                            console.log('Clicks:', clicks, '| Spend:', spend, '| Sales:', sales);
+                            console.log('Raw row keys:', Object.keys(row).join(', '));
+                            console.log('Raw Campaign name (Info):', row['Campaign name (Informational only)']);
+                            console.log('Raw Ad group name (Info):', row['Ad group name (Informational only)']);
+                            console.log('Raw Keyword text:', row['Keyword text']);
+                            console.log('Raw Product targeting expression:', row['Product targeting expression']);
+                            console.log('Raw Bid:', row['Bid']);
+                        }
 
                         let suggestedBid = originalBid;
                         let reason = 'Ignored (No clicks/spend)';
                         let ruleCategory = 'No Action';
                         let modified = false;
 
-                        // Only optimize if they spent money or got clicks
-                        if (clicks > 0 || spend > 0) {
+                        const historicalRpc = clicks > 0 ? sales / clicks : 0;
 
-                            // STRATEGY: INCH UP (<= 3 Clicks)
-                            if (clicks <= 3) {
-                                // Increase bid slightly (10%) to try to force impressions/clicks to gather data
-                                suggestedBid = originalBid * 1.10;
-                                reason = `Inch Up: ${clicks} clicks - Data collection phase`;
-                                ruleCategory = 'Inch Up';
-                                modified = true;
+                        if (clicks <= 3) {
+                            reason = `Inch Up: ${clicks} clicks - Data collection phase`;
+                            ruleCategory = 'Inch Up';
+                            suggestedBid = originalBid * 1.10;
+                            modified = true;
+                        } else {
+                            if (historicalRpc > 0) {
+                                const ratio = targetRpc / historicalRpc;
+                                suggestedBid = originalBid * ratio;
+                                reason = `RPC Bidding: Current RPC $${historicalRpc.toFixed(2)} -> Target RPC $${targetRpc.toFixed(2)}`;
+                                ruleCategory = 'RPC Bidding';
+                            } else {
+                                suggestedBid = originalBid * 1.05;
+                                reason = `RPC Bidding: Current RPC $0.00 -> Target RPC $${targetRpc.toFixed(2)}`;
+                                ruleCategory = 'RPC Bidding';
                             }
-                            // STRATEGY: RPC BIDDING (> 3 Clicks)
-                            else if (clicks > 3) {
-                                if (strategy === 'rpc-only' || strategy === 'inch-up-rpc') {
-                                    const historicalRpc = sales / clicks;
-                                    const rawRocBid = historicalRpc > 0 ? (sales / clicks) * 0.30 : originalBid * 0.5; // Example logic
-                                    suggestedBid = rawRocBid;
+                            modified = true;
+                        }
 
-                                    reason = `RPC Bidding: Current RPC $${historicalRpc.toFixed(2)} -> Target RPC $${targetRpc.toFixed(2)}`;
-                                    ruleCategory = 'RPC Bidding';
-                                    modified = true;
+                        if (modified) {
+                            // CLAMP to Min/Max Bounds
+                            suggestedBid = Math.round(Math.max(minBid, Math.min(maxBid, suggestedBid)) * 100) / 100;
+
+                            // Update bid in the original data for export
+                            const bidKeys = ['Bid', 'Max Bid', 'Keyword Bid', 'Targeting Bid'];
+                            const rowKeys = Object.keys(row);
+                            let bidUpdated = false;
+                            for (const bk of bidKeys) {
+                                const matchKey = rowKeys.find(k => k.toLowerCase() === bk.toLowerCase());
+                                if (matchKey) {
+                                    row[matchKey] = suggestedBid;
+                                    bidUpdated = true;
+                                    break;
                                 }
                             }
+                            if (!bidUpdated) row['Bid'] = suggestedBid;
 
-                            if (modified) {
-                                // CLAMP to Min/Max Bounds
-                                if (suggestedBid < minBid) suggestedBid = minBid;
-                                if (suggestedBid > maxBid) suggestedBid = maxBid;
+                            // Calculate display metrics
+                            const acos = sales > 0 ? (spend / sales) * 100 : 0;
+                            const roas = spend > 0 ? sales / spend : 0;
+                            const cpc = clicks > 0 ? spend / clicks : 0;
+                            const rpc = clicks > 0 ? sales / clicks : 0;
+                            const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+                            const cr = clicks > 0 ? (orders / clicks) * 100 : 0;
+                            const changePct = originalBid > 0 ? ((suggestedBid - originalBid) / originalBid) * 100 : 0;
 
-                                // Update the actual row data (handle multiple possible column names)
-                                if (row['Max Bid'] !== undefined) row['Max Bid'] = suggestedBid;
-                                else if (row['Keyword Bid'] !== undefined) row['Keyword Bid'] = suggestedBid;
-                                else if (row['Targeting Bid'] !== undefined) row['Targeting Bid'] = suggestedBid;
-                                else if (row['Bid'] !== undefined) row['Bid'] = suggestedBid;
-
-                                // Calculate display metrics
-                                const acos = sales > 0 ? (spend / sales) * 100 : 0;
-                                const roas = spend > 0 ? sales / spend : 0;
-                                const cpc = clicks > 0 ? spend / clicks : 0;
-                                const rpc = clicks > 0 ? sales / clicks : 0;
-                                const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-                                const cr = clicks > 0 ? (orders / clicks) * 100 : 0;
-                                const changePct = ((suggestedBid - originalBid) / originalBid) * 100;
-
-                                processedResults.push({
-                                    id: index,
-                                    keyword: row['Keyword Text'] || row['Product Targeting ID'] || `Row ${index + 2}`,
-                                    campaign,
-                                    adGroup,
-                                    originalBid,
-                                    suggestedBid,
-                                    changePct,
-                                    clicks,
-                                    impressions,
-                                    spend,
-                                    sales,
-                                    orders,
-                                    acos,
-                                    roas,
-                                    cpc,
-                                    rpc,
-                                    ctr,
-                                    cr,
-                                    reason,
-                                    ruleCategory
-                                });
-                            }
+                            processedResults.push({
+                                id: index,
+                                keyword: target,
+                                campaign: campaign || 'Unknown Campaign',
+                                adGroup: adGroup || 'Unknown Ad Group',
+                                originalBid,
+                                suggestedBid,
+                                changePct,
+                                clicks,
+                                impressions,
+                                spend,
+                                sales,
+                                orders,
+                                units,
+                                acos,
+                                roas,
+                                cpc,
+                                rpc,
+                                ctr,
+                                cr,
+                                reason,
+                                ruleCategory
+                            });
                         }
                     }
                 });
 
-                setResults(processedResults.slice(0, 50)); // Only show top 50 in UI to prevent lag
+                const totalSales = processedResults.reduce((sum, item) => sum + item.sales, 0);
+                const totalSpend = processedResults.reduce((sum, item) => sum + item.spend, 0);
+
+                processedResults.forEach(item => {
+                    item.salesPercent = totalSales > 0 ? (item.sales / totalSales) * 100 : 0;
+                    item.spendPercent = totalSpend > 0 ? (item.spend / totalSpend) * 100 : 0;
+                });
+
+                setResults(processedResults); // Display all, pagination handles slicing ui
 
                 // Store updated data
                 setWorkbookData({
@@ -220,7 +336,7 @@ const BiddingOptimizer = () => {
     // --- DATATABLE LOGIC ---
     const columns = [
         { label: 'Target', key: 'keyword' },
-        { label: 'Campaign', key: 'campaign' },
+        { label: 'Campaign Name', key: 'campaign' },
         { label: 'Ad Group', key: 'adGroup' },
         { label: 'Strategy', key: 'ruleCategory' },
         { label: 'Condition', key: 'reason' },
@@ -229,15 +345,18 @@ const BiddingOptimizer = () => {
         { label: 'Change', key: 'changePct', isNumeric: true, suffix: '%' },
         { label: 'Sales', key: 'sales', isNumeric: true, prefix: '$' },
         { label: 'Spend', key: 'spend', isNumeric: true, prefix: '$' },
-        { label: 'Impr.', key: 'impressions', isNumeric: true },
+        { label: 'Impressions', key: 'impressions', isNumeric: true },
         { label: 'Clicks', key: 'clicks', isNumeric: true },
         { label: 'Orders', key: 'orders', isNumeric: true },
-        { label: 'ACOS', key: 'acos', isNumeric: true, suffix: '%' },
+        { label: 'Units', key: 'units', isNumeric: true },
+        { label: 'ACOS (%)', key: 'acos', isNumeric: true, suffix: '%' },
         { label: 'ROAS', key: 'roas', isNumeric: true },
         { label: 'CPC', key: 'cpc', isNumeric: true, prefix: '$' },
         { label: 'RPC', key: 'rpc', isNumeric: true, prefix: '$' },
-        { label: 'CTR', key: 'ctr', isNumeric: true, suffix: '%' },
-        { label: 'CR', key: 'cr', isNumeric: true, suffix: '%' }
+        { label: 'CTR (%)', key: 'ctr', isNumeric: true, suffix: '%' },
+        { label: 'CR (%)', key: 'cr', isNumeric: true, suffix: '%' },
+        { label: 'Sales %', key: 'salesPercent', isNumeric: true, suffix: '%' },
+        { label: 'Spend %', key: 'spendPercent', isNumeric: true, suffix: '%' }
     ];
 
     const handleSort = (key) => {
@@ -342,200 +461,200 @@ const BiddingOptimizer = () => {
             {/* Header Section */}
             <div className="container">
                 <div className="optimizer-header text-center">
-                <div className="optimizer-icon-ring">
-                    <FileSpreadsheet size={40} color="var(--color-primary)" />
-                </div>
-                <h1>Amazon Bidding Optimizer</h1>
-                <p className="text-muted mx-auto" style={{ maxWidth: '800px', margin: '1rem auto 2.5rem', lineHeight: '1.6', fontSize: '1.1rem' }}>
-                    Automatically adjust your keyword and product targeting bids based on hard performance data.
-                </p>
-
-                {/* Instruction Cards (Hover Reveal) */}
-                <div className="instruction-cards">
-                    <div className="instruction-card">
-                        <div className="card-front">
-                            <h3>What this tool does</h3>
-                            <ChevronDown className="bounce-icon" />
-                        </div>
-                        <div className="card-back">
-                            <ul>
-                                <li><strong>Smart Bidding:</strong> Uses "Inch Up" & RPC methodology.</li>
-                                <li><strong>Performance-Based:</strong> Adjusts with custom thresholds.</li>
-                                <li><strong>Constraints:</strong> Target RPC & Min/Max limits.</li>
-                                <li><strong>Real-time Output:</strong> Calculates changes instantly.</li>
-                            </ul>
-                        </div>
+                    <div className="optimizer-icon-ring">
+                        <FileSpreadsheet size={40} color="var(--color-primary)" />
                     </div>
+                    <h1>Amazon Bidding Optimizer</h1>
+                    <p className="text-muted mx-auto" style={{ maxWidth: '800px', margin: '1rem auto 2.5rem', lineHeight: '1.6', fontSize: '1.1rem' }}>
+                        Automatically adjust your keyword and product targeting bids based on hard performance data.
+                    </p>
 
-                    <div className="instruction-card">
-                        <div className="card-front">
-                            <h3>How to use</h3>
-                            <ChevronDown className="bounce-icon" />
-                        </div>
-                        <div className="card-back">
-                            <ol>
-                                <li>Download Operations file from Amazon.</li>
-                                <li>Select Ad Type & Strategy below.</li>
-                                <li>Upload the Excel file to the dropzone.</li>
-                                <li>Review the optimization results table.</li>
-                                <li>Download the newly optimized file.</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="optimizer-card-container">
-                {/* STEP 1: SETTINGS */}
-                <div className="optimizer-step-card">
-                    <div className="step-header">
-                        <div className="step-number">1</div>
-                        <div>
-                            <h2>Optimization Strategy</h2>
-                            <p className="text-muted">Configure the rules for how the AI adjusts your bids</p>
-                        </div>
-                    </div>
-
-                    <div className="settings-grid">
-                        <div className="form-group group-full-width">
-                            <label>Select Ad Type</label>
-                            <div className="radio-pill-group triple">
-                                <label className={`radio-pill ${adType === 'sponsored-products' ? 'active' : ''}`}>
-                                    <input type="radio" value="sponsored-products" checked={adType === 'sponsored-products'} onChange={(e) => setAdType(e.target.value)} />
-                                    Sponsored Products
-                                </label>
-                                <label className={`radio-pill ${adType === 'sponsored-brands' ? 'active' : ''}`}>
-                                    <input type="radio" value="sponsored-brands" checked={adType === 'sponsored-brands'} onChange={(e) => setAdType(e.target.value)} />
-                                    Sponsored Brands
-                                </label>
-                                <label className={`radio-pill ${adType === 'sponsored-display' ? 'active' : ''}`}>
-                                    <input type="radio" value="sponsored-display" checked={adType === 'sponsored-display'} onChange={(e) => setAdType(e.target.value)} />
-                                    Sponsored Display
-                                </label>
+                    {/* Instruction Cards (Hover Reveal) */}
+                    <div className="instruction-cards">
+                        <div className="instruction-card">
+                            <div className="card-front">
+                                <h3>What this tool does</h3>
+                                <ChevronDown className="bounce-icon" />
+                            </div>
+                            <div className="card-back">
+                                <ul>
+                                    <li><strong>Smart Bidding:</strong> Uses "Inch Up" & RPC methodology.</li>
+                                    <li><strong>Performance-Based:</strong> Adjusts with custom thresholds.</li>
+                                    <li><strong>Constraints:</strong> Target RPC & Min/Max limits.</li>
+                                    <li><strong>Real-time Output:</strong> Calculates changes instantly.</li>
+                                </ul>
                             </div>
                         </div>
 
-                        <div className="form-group group-full-width">
-                            <label>Bidding Strategy</label>
-                            <div className="radio-pill-group double">
-                                <label className={`radio-pill ${strategy === 'inch-up-rpc' ? 'active' : ''}`}>
-                                    <input type="radio" value="inch-up-rpc" checked={strategy === 'inch-up-rpc'} onChange={(e) => setStrategy(e.target.value)} />
-                                    Inch Up + RPC Bidding
-                                </label>
-                                <label className={`radio-pill ${strategy === 'rpc-only' ? 'active' : ''}`}>
-                                    <input type="radio" value="rpc-only" checked={strategy === 'rpc-only'} onChange={(e) => setStrategy(e.target.value)} />
-                                    Strict RPC Bidding
-                                </label>
+                        <div className="instruction-card">
+                            <div className="card-front">
+                                <h3>How to use</h3>
+                                <ChevronDown className="bounce-icon" />
                             </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label>Target Revenue Per Click (RPC)</label>
-                            <div className="input-with-symbol">
-                                <span className="symbol">$</span>
-                                <input
-                                    type="number"
-                                    min="0.10"
-                                    step="0.10"
-                                    value={targetRpc}
-                                    onChange={(e) => setTargetRpc(parseFloat(e.target.value))}
-                                    placeholder="2.50"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label>Min Bid Limit</label>
-                            <div className="input-with-symbol">
-                                <span className="symbol">$</span>
-                                <input
-                                    type="number"
-                                    min="0.05"
-                                    step="0.05"
-                                    value={minBid}
-                                    onChange={(e) => setMinBid(parseFloat(e.target.value))}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label>Max Bid Limit</label>
-                            <div className="input-with-symbol">
-                                <span className="symbol">$</span>
-                                <input
-                                    type="number"
-                                    min="0.50"
-                                    step="0.10"
-                                    value={maxBid}
-                                    onChange={(e) => setMaxBid(parseFloat(e.target.value))}
-                                />
+                            <div className="card-back">
+                                <ol>
+                                    <li>Download Operations file from Amazon.</li>
+                                    <li>Select Ad Type & Strategy below.</li>
+                                    <li>Upload the Excel file to the dropzone.</li>
+                                    <li>Review the optimization results table.</li>
+                                    <li>Download the newly optimized file.</li>
+                                </ol>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* STEP 2: UPLOAD & RESULTS */}
-                <div className="optimizer-step-card">
-                    <div className="step-header">
-                        <div className="step-number">2</div>
-                        <div>
-                            <h2>Process Data</h2>
-                            <p className="text-muted">Upload your bulk operations file to generate the optimized output</p>
+                <div className="optimizer-card-container">
+                    {/* STEP 1: SETTINGS */}
+                    <div className="optimizer-step-card">
+                        <div className="step-header">
+                            <div className="step-number">1</div>
+                            <div>
+                                <h2>Optimization Strategy</h2>
+                                <p className="text-muted">Configure the rules for how the AI adjusts your bids</p>
+                            </div>
+                        </div>
+
+                        <div className="settings-grid">
+                            <div className="form-group group-full-width">
+                                <label>Select Ad Type</label>
+                                <div className="radio-pill-group triple">
+                                    <label className={`radio-pill ${adType === 'sponsored-products' ? 'active' : ''}`}>
+                                        <input type="radio" value="sponsored-products" checked={adType === 'sponsored-products'} onChange={(e) => setAdType(e.target.value)} />
+                                        Sponsored Products
+                                    </label>
+                                    <label className={`radio-pill ${adType === 'sponsored-brands' ? 'active' : ''}`}>
+                                        <input type="radio" value="sponsored-brands" checked={adType === 'sponsored-brands'} onChange={(e) => setAdType(e.target.value)} />
+                                        Sponsored Brands
+                                    </label>
+                                    <label className={`radio-pill ${adType === 'sponsored-display' ? 'active' : ''}`}>
+                                        <input type="radio" value="sponsored-display" checked={adType === 'sponsored-display'} onChange={(e) => setAdType(e.target.value)} />
+                                        Sponsored Display
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="form-group group-full-width">
+                                <label>Bidding Strategy</label>
+                                <div className="radio-pill-group double">
+                                    <label className={`radio-pill ${strategy === 'inch-up-rpc' ? 'active' : ''}`}>
+                                        <input type="radio" value="inch-up-rpc" checked={strategy === 'inch-up-rpc'} onChange={(e) => setStrategy(e.target.value)} />
+                                        Inch Up + RPC Bidding
+                                    </label>
+                                    <label className={`radio-pill ${strategy === 'rpc-only' ? 'active' : ''}`}>
+                                        <input type="radio" value="rpc-only" checked={strategy === 'rpc-only'} onChange={(e) => setStrategy(e.target.value)} />
+                                        Strict RPC Bidding
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Target Revenue Per Click (RPC)</label>
+                                <div className="input-with-symbol">
+                                    <span className="symbol">$</span>
+                                    <input
+                                        type="number"
+                                        min="0.10"
+                                        step="0.10"
+                                        value={targetRpc}
+                                        onChange={(e) => setTargetRpc(parseFloat(e.target.value))}
+                                        placeholder="2.50"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Min Bid Limit</label>
+                                <div className="input-with-symbol">
+                                    <span className="symbol">$</span>
+                                    <input
+                                        type="number"
+                                        min="0.05"
+                                        step="0.05"
+                                        value={minBid}
+                                        onChange={(e) => setMinBid(parseFloat(e.target.value))}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Max Bid Limit</label>
+                                <div className="input-with-symbol">
+                                    <span className="symbol">$</span>
+                                    <input
+                                        type="number"
+                                        min="0.50"
+                                        step="0.10"
+                                        value={maxBid}
+                                        onChange={(e) => setMaxBid(parseFloat(e.target.value))}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="step-content">
-                        {/* Upload Zone */}
-                        {!file && (
-                            <div className="upload-zone">
-                                <input
-                                    type="file"
-                                    accept=".xlsx, .xls"
-                                    id="file-upload"
-                                    onChange={handleFileUpload}
-                                />
-                                <label htmlFor="file-upload" className="upload-content">
-                                    <div className="upload-icon">
-                                        <Upload size={32} />
-                                    </div>
-                                    <h3>Upload Bulk Operations File</h3>
-                                    <p>Drag and drop your Amazon Ads Excel file here, or click to browse.</p>
-                                    <span className="file-hint">Supported formats: .xlsx from Amazon Ads Console</span>
-                                </label>
+                    {/* STEP 2: UPLOAD & RESULTS */}
+                    <div className="optimizer-step-card">
+                        <div className="step-header">
+                            <div className="step-number">2</div>
+                            <div>
+                                <h2>Process Data</h2>
+                                <p className="text-muted">Upload your bulk operations file to generate the optimized output</p>
                             </div>
-                        )}
+                        </div>
 
-                        {error && (
-                            <div className="error-banner">
-                                <AlertCircle size={20} />
-                                <span>{error}</span>
-                            </div>
-                        )}
+                        <div className="step-content">
+                            {/* Upload Zone */}
+                            {!file && (
+                                <div className="upload-zone">
+                                    <input
+                                        type="file"
+                                        accept=".xlsx, .xls"
+                                        id="file-upload"
+                                        onChange={handleFileUpload}
+                                    />
+                                    <label htmlFor="file-upload" className="upload-content">
+                                        <div className="upload-icon">
+                                            <Upload size={32} />
+                                        </div>
+                                        <h3>Upload Bulk Operations File</h3>
+                                        <p>Drag and drop your Amazon Ads Excel file here, or click to browse.</p>
+                                        <span className="file-hint">Supported formats: .xlsx from Amazon Ads Console</span>
+                                    </label>
+                                </div>
+                            )}
 
-                        {/* Results / Processing State placed OUTSIDE the main container to allow full width */}
+                            {error && (
+                                <div className="error-banner">
+                                    <AlertCircle size={20} />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+
+                            {/* Results / Processing State placed OUTSIDE the main container to allow full width */}
+                        </div>
                     </div>
-                </div>
-            </div> {/* End of .optimizer-card-container */}
+                </div> {/* End of .optimizer-card-container */}
             </div> {/* End of .container */}
 
             {/* FULL WIDTH RESULTS */}
             {file && (
-                <div className="px-4 sm:px-8 max-w-full">
+                <div className="w-full" style={{ paddingLeft: '10%', paddingRight: '10%' }}>
                     <div className="pop-card mt-8">
                         <div className="pop-card-header">
                             <div className="pop-step-number">3</div>
                             <h3 className="text-base tracking-wide">Optimization Results</h3>
                         </div>
-                        
+
                         <div className="pop-card-body p-4 bg-white dark:bg-[var(--color-bg-dark)]">
                             <div className="mb-4">
                                 <div className="flex gap-4 items-center flex-wrap">
                                     <div className="flex-1 min-w-[200px]">
-                                        <input 
-                                            id="search-results" 
-                                            placeholder="Type to search globally across all fields..." 
-                                            className="pop-input w-full text-sm" 
-                                            type="text" 
+                                        <input
+                                            id="search-results"
+                                            placeholder="Type to search globally across all fields..."
+                                            className="pop-input w-full text-sm"
+                                            type="text"
                                             value={globalSearch}
                                             onChange={(e) => setGlobalSearch(e.target.value)}
                                         />
@@ -551,7 +670,7 @@ const BiddingOptimizer = () => {
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div className="pop-table-container relative overflow-x-auto shadow-md sm:rounded-lg border border-gray-200 dark:border-gray-700" style={{ maxHeight: '600px' }}>
                                 {isParsing ? (
                                     <div className="parsing-state p-8 text-center text-gray-500 dark:text-gray-400">
@@ -563,21 +682,21 @@ const BiddingOptimizer = () => {
                                         <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0 z-10 shadow-sm leading-normal">
                                             <tr>
                                                 {columns.map(col => (
-                                                    <th key={col.key} className="pop-th relative group">
-                                                        <div className="flex items-center justify-between space-x-1 cursor-pointer" onClick={() => handleSort(col.key)}>
+                                                    <th key={col.key} className="pop-th relative group px-4 py-3 bg-[#f8fafc] text-gray-700 font-semibold text-left tracking-wide border-b border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap shadow-sm select-none">
+                                                        <div className="flex items-center justify-between space-x-2 cursor-pointer" onClick={() => handleSort(col.key)}>
                                                             <span>{col.label}</span>
                                                             {/* Sort Icons */}
-                                                            <div className="flex flex-col ml-1 text-gray-300 dark:text-gray-600">
-                                                                <svg width="12" height="12" className={`-mb-1 ${sortConfig.key === col.key && sortConfig.direction === 'asc' ? 'text-gray-900 dark:text-gray-100' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
-                                                                <svg width="12" height="12" className={`${sortConfig.key === col.key && sortConfig.direction === 'desc' ? 'text-gray-900 dark:text-gray-100' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                            <div className="flex flex-col ml-1 text-gray-300 dark:text-gray-600 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                                <svg width="12" height="12" className={`-mb-1 ${sortConfig.key === col.key && sortConfig.direction === 'asc' ? 'text-[#5171ff] dark:text-[#5171ff]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                                                                <svg width="12" height="12" className={`${sortConfig.key === col.key && sortConfig.direction === 'desc' ? 'text-[#5171ff] dark:text-[#5171ff]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         {/* Filter Toggle Button */}
                                                         {['campaign', 'adGroup', 'ruleCategory', 'keyword'].includes(col.key) && (
-                                                            <button 
+                                                            <button
                                                                 onClick={(e) => { e.stopPropagation(); toggleFilterDropdown(col.key); }}
-                                                                className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${filterConfigs[col.key] ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}
+                                                                className={`absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 ${filterConfigs[col.key] ? 'text-white bg-[#5171ff] shadow-md hover:bg-blue-600 ring-2 ring-white ring-offset-1' : 'text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50 border border-gray-200 shadow-sm'}`}
                                                             >
                                                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
                                                             </button>
@@ -588,14 +707,14 @@ const BiddingOptimizer = () => {
                                                             <div className="absolute top-full left-0 mt-1 min-w-[200px] w-max bg-white border border-gray-200 rounded shadow-lg z-50 dark:bg-gray-800 dark:border-gray-600" onClick={e => e.stopPropagation()}>
                                                                 <div className="p-2 border-b border-gray-200 dark:border-gray-700">
                                                                     <div className="flex items-center space-x-2">
-                                                                        <input 
-                                                                            type="text" 
-                                                                            className="w-full px-2 py-1 text-xs border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
-                                                                            placeholder="Search..." 
+                                                                        <input
+                                                                            type="text"
+                                                                            className="w-full px-2 py-1 text-xs border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                                            placeholder="Search..."
                                                                             value={filterSearchQuery}
                                                                             onChange={e => setFilterSearchQuery(e.target.value)}
                                                                         />
-                                                                        <button 
+                                                                        <button
                                                                             className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:text-gray-200 whitespace-nowrap"
                                                                             onClick={() => selectAllFilter(col.key, getUniqueValues(col.key).filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase())))}
                                                                         >All</button>
@@ -605,16 +724,16 @@ const BiddingOptimizer = () => {
                                                                     {getUniqueValues(col.key)
                                                                         .filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase()))
                                                                         .map((val, idx) => (
-                                                                        <label key={idx} className="flex items-center space-x-2 px-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer rounded">
-                                                                            <input 
-                                                                                type="checkbox" 
-                                                                                className="w-3 h-3 text-blue-600 rounded"
-                                                                                checked={tempSelections.includes(val)}
-                                                                                onChange={() => toggleFilterSelection(val)}
-                                                                            />
-                                                                            <span className="text-xs truncate" title={val}>{val}</span>
-                                                                        </label>
-                                                                    ))}
+                                                                            <label key={idx} className="flex items-center space-x-2 px-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer rounded">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    className="w-3 h-3 text-blue-600 rounded"
+                                                                                    checked={tempSelections.includes(val)}
+                                                                                    onChange={() => toggleFilterSelection(val)}
+                                                                                />
+                                                                                <span className="text-xs truncate" title={val}>{val}</span>
+                                                                            </label>
+                                                                        ))}
                                                                 </div>
                                                                 <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex space-x-2">
                                                                     <button className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" onClick={() => applyFilter(col.key)}>Apply</button>
@@ -631,7 +750,7 @@ const BiddingOptimizer = () => {
                                                 <tr key={row.id} className="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
                                                     {columns.map(col => {
                                                         const val = row[col.key];
-                                                        
+
                                                         // Special formatting overrides
                                                         if (col.key === 'ruleCategory') {
                                                             return <td key={col.key} className="pop-td"><span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded dark:bg-blue-200 dark:text-blue-900">{val}</span></td>;
@@ -653,10 +772,24 @@ const BiddingOptimizer = () => {
                                                         }
 
                                                         // Default rendering
+                                                        let displayVal = val;
+
+                                                        if (col.isNumeric && val != null) {
+                                                            if (['impressions', 'clicks', 'orders', 'units'].includes(col.key)) {
+                                                                displayVal = val.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                                            } else if (['sales', 'spend'].includes(col.key)) {
+                                                                displayVal = val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                                                            } else if (['changePct', 'acos', 'ctr', 'cr', 'salesPercent', 'spendPercent'].includes(col.key)) {
+                                                                displayVal = val.toFixed(1);
+                                                            } else {
+                                                                displayVal = val.toFixed(2);
+                                                            }
+                                                        }
+
                                                         return (
                                                             <td key={col.key} className="pop-td font-medium text-gray-900 dark:text-gray-200" title={val}>
                                                                 <div className={`${['keyword', 'campaign', 'adGroup'].includes(col.key) ? 'truncate max-w-[200px]' : ''}`}>
-                                                                    {col.prefix}{col.isNumeric ? val.toFixed(2) : val}{col.suffix}
+                                                                    {col.prefix}{displayVal}{col.suffix}
                                                                 </div>
                                                             </td>
                                                         );
@@ -672,34 +805,34 @@ const BiddingOptimizer = () => {
                                     </table>
                                 )}
                             </div>
-                            
+
                             {/* Pagination Controls */}
                             {!isParsing && processedData.length > 0 && (
-                                <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 border-t pt-4 dark:border-gray-700">
-                                    <div className="flex items-center gap-2">
+                                <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 border-t pt-5 pb-2 px-2 dark:border-gray-700">
+                                    <div className="flex items-center gap-2 font-medium">
                                         Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, processedData.length)} of {processedData.length} entries
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <button 
+                                        <button
                                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                             disabled={currentPage === 1}
-                                            className="px-3 py-1 rounded border disabled:opacity-50 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                                            className="px-4 py-2 font-medium text-sm rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:shadow disabled:hover:shadow-sm dark:bg-[var(--color-bg-dark)] dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                                         >
                                             Previous
                                         </button>
-                                        <div className="flex space-x-1">
+                                        <div className="flex space-x-1.5">
                                             {[...Array(Math.min(5, totalPages))].map((_, idx) => {
                                                 // Simple windowing logic
                                                 let p = currentPage - 2 + idx;
                                                 if (currentPage <= 3) p = idx + 1;
                                                 else if (currentPage >= totalPages - 2) p = totalPages - 4 + idx;
-                                                
+
                                                 if (p > 0 && p <= totalPages) {
                                                     return (
-                                                        <button 
-                                                            key={p} 
+                                                        <button
+                                                            key={p}
                                                             onClick={() => setCurrentPage(p)}
-                                                            className={`w-8 h-8 flex items-center justify-center rounded border ${currentPage === p ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700'}`}
+                                                            className={`w-9 h-9 flex items-center justify-center font-semibold text-sm rounded-lg border shadow-sm transition-all ${currentPage === p ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow dark:bg-[var(--color-bg-dark)] dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800'}`}
                                                         >
                                                             {p}
                                                         </button>
@@ -708,10 +841,10 @@ const BiddingOptimizer = () => {
                                                 return null;
                                             })}
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                             disabled={currentPage === totalPages}
-                                            className="px-3 py-1 rounded border disabled:opacity-50 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                                            className="px-4 py-2 font-medium text-sm rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:shadow disabled:hover:shadow-sm dark:bg-[var(--color-bg-dark)] dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                                         >
                                             Next
                                         </button>
