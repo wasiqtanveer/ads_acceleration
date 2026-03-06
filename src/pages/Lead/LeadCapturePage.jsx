@@ -13,7 +13,7 @@ const TOOL_REGISTRY = {
         badge: '🚀 Free Access — Limited Time',
         headline: (
             <>
-                FIXING AMAZON ADS FOR <span className="highlight-yellow">MILLION $$</span> BRANDS
+                FIXING AMAZON ADS FOR <span className="highlight-yellow">MILLION $$</span> BRANDS via AUTOMATION
             </>
         ),
         subText: (
