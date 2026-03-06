@@ -1,16 +1,72 @@
 import React from 'react';
-import { Rocket } from 'lucide-react';
+import { Rocket, Calculator, Image as ImageIcon, LineChart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import './ToolsIndex.css';
+
+const toolsList = [
+    {
+        id: 'bidding-optimizer',
+        title: 'Bidding Optimizer',
+        description: 'Auto-adjust keyword bids using smart Inch Up and RPC targeting to maximize PPC profitability.',
+        icon: <Calculator size={32} color="white" />,
+        path: '/tools/bidding-optimizer',
+        badge: 'New',
+        isReady: true
+    },
+    {
+        id: 'ai-listing',
+        title: 'AI Listing Generator',
+        description: 'Generate stunning, conversion-optimized Amazon product images instantly using AI.',
+        icon: <ImageIcon size={32} color="white" />,
+        path: '#',
+        badge: null,
+        isReady: false
+    },
+    {
+        id: 'competitor-analysis',
+        title: 'Competitor Tracker',
+        description: 'Monitor competitor pricing, reviews, and rank changes to stay one step ahead.',
+        icon: <LineChart size={32} color="white" />,
+        path: '#',
+        badge: null,
+        isReady: false
+    }
+];
 
 const ToolsIndex = () => {
+    const navigate = useNavigate();
+
     return (
-        <div className="container section text-center" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-            <Rocket size={64} color="var(--color-primary)" style={{ marginBottom: '2rem' }} />
-            <h1 style={{ marginBottom: '1rem' }}>AI Tools Dashboard</h1>
-            <p style={{ color: 'var(--color-text-muted)', maxWidth: '600px', margin: '0 auto 2rem' }}>
-                This section is reserved for the scalable tools area. Here you will be able to access the AI Listing Image Generator, Competitor Analysis, and Automated PPC scripts.
-            </p>
-            <button className="btn btn-primary">Coming Soon</button>
-        </div>
+        <section className="tools-dashboard container section">
+            <div className="tools-header text-center">
+                <Rocket size={48} color="var(--color-primary)" className="tools-header-icon" />
+                <h1>Seller AI Tools</h1>
+                <p className="text-muted" style={{ maxWidth: '600px', margin: '0 auto' }}>
+                    Access our suite of proprietary tools designed specifically to give Amazon sellers an unfair competitive advantage.
+                </p>
+            </div>
+
+            <div className="tools-grid">
+                {toolsList.map((tool) => (
+                    <div className={`tool-card ${!tool.isReady ? 'disabled' : ''}`} key={tool.id}>
+                        {tool.badge && <span className="tool-badge">{tool.badge}</span>}
+                        <div className="tool-icon-wrapper">
+                            {tool.icon}
+                        </div>
+                        <h3>{tool.title}</h3>
+                        <p className="text-muted">{tool.description}</p>
+
+                        <button
+                            className={`btn ${tool.isReady ? 'btn-primary' : 'btn-outline'}`}
+                            onClick={() => tool.isReady && navigate(tool.path)}
+                            disabled={!tool.isReady}
+                        >
+                            {tool.isReady ? 'Open Tool' : 'Coming Soon'}
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </section>
     );
 };
 

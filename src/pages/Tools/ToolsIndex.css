@@ -1,0 +1,125 @@
+.tools-dashboard {
+    min-height: 80vh;
+    padding-top: 120px;
+    /* Accounts for fixed navbar */
+}
+
+.tools-header {
+    margin-bottom: 4rem;
+}
+
+.tools-header-icon {
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.tool-card {
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: 24px;
+    padding: 2.5rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    isolation: isolate;
+    overflow: hidden;
+}
+
+/* Hover glow effect */
+.tool-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(229, 9, 20, 0.05), transparent 40%);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: -1;
+}
+
+.tool-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(229, 9, 20, 0.3);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+body.light-mode .tool-card:hover {
+    box-shadow: 0 20px 40px rgba(229, 9, 20, 0.08);
+}
+
+.tool-card:hover::before {
+    opacity: 1;
+}
+
+/* Coming Soon State */
+.tool-card.disabled {
+    opacity: 0.7;
+}
+
+.tool-card.disabled:hover {
+    transform: none;
+    border-color: var(--color-border);
+    box-shadow: none;
+}
+
+.tool-card.disabled:hover::before {
+    opacity: 0;
+}
+
+.tool-badge {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: var(--color-primary);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 0 15px rgba(229, 9, 20, 0.4);
+}
+
+/* Icon container */
+.tool-icon-wrapper {
+    background: linear-gradient(135deg, var(--color-primary), #bb0710);
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 10px 20px rgba(229, 9, 20, 0.3);
+}
+
+.tool-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-family: var(--font-heading);
+    color: var(--color-text);
+}
+
+.tool-card p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    flex-grow: 1;
+}
+
+.tool-card button {
+    width: 100%;
+    margin-top: auto;
+    font-weight: 600;
+}
