@@ -165,6 +165,29 @@ body.light-mode .lead-page::before {
     margin-bottom: 2.5rem;
 }
 
+.lead-bullets {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: left;
+}
+
+.lead-bullets li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.lead-bullets li svg {
+    color: var(--color-primary);
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+}
+
 /* =====================
    Form
    ===================== */
@@ -248,18 +271,19 @@ body.light-mode .lead-page::before {
     font-family: var(--font-family);
     text-transform: uppercase;
     letter-spacing: 1px;
-    cursor: pointer;
-    transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
     display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 0.6rem;
-    box-shadow: 0 4px 20px rgba(255, 204, 0, 0.3);
+    align-items: center;
+    gap: 0.8rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .lead-submit-btn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(255, 204, 0, 0.45);
+    box-shadow: 0 8px 25px rgba(255, 204, 0, 0.4);
+    filter: brightness(1.05);
 }
 
 .lead-submit-btn:active:not(:disabled) {
@@ -269,8 +293,71 @@ body.light-mode .lead-page::before {
 .lead-submit-btn:disabled {
     opacity: 0.7;
     cursor: not-allowed;
-    transform: none;
+    background: var(--color-text-muted);
     box-shadow: none;
+}
+
+.lead-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    margin: 1rem 0;
+}
+
+.lead-divider::before,
+.lead-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.lead-divider::before {
+    margin-right: .5em;
+}
+
+.lead-divider::after {
+    margin-left: .5em;
+}
+
+.lead-call-btn {
+    width: 100%;
+    padding: 1rem;
+    background: transparent;
+    color: var(--color-text);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: var(--font-family);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.lead-call-btn:hover {
+    border-color: #006BFF;
+    /* Calendly Blueish hint */
+    color: #006BFF;
+    background: rgba(0, 107, 255, 0.05);
+    transform: translateY(-2px);
+}
+
+body.light-mode .lead-call-btn {
+    border-color: var(--color-border);
+    color: var(--color-text);
+}
+
+body.light-mode .lead-call-btn:hover {
+    border-color: #006BFF;
+    color: #006BFF;
 }
 
 /* Checkbox Styles */

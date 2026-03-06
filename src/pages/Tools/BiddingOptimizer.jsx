@@ -16,6 +16,16 @@ const BiddingOptimizer = () => {
     const [isParsing, setIsParsing] = useState(false);
     const [results, setResults] = useState([]);
 
+    // Datatable State
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    const [filterConfigs, setFilterConfigs] = useState({}); // { filterKey: [checkedValues] }
+    const [activeFilterDropdown, setActiveFilterDropdown] = useState(null);
+    const [filterSearchQuery, setFilterSearchQuery] = useState('');
+    const [tempSelections, setTempSelections] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [globalSearch, setGlobalSearch] = useState('');
+    const itemsPerPage = 100;
+
     // UI State
     const [error, setError] = useState('');
 
@@ -71,8 +81,15 @@ const BiddingOptimizer = () => {
                         // For bids, it might be 'Max Bid', 'Keyword Bid', or 'Targeting Bid' depending on the report type
                         const originalBid = parseFloat(row['Max Bid']) || parseFloat(row['Keyword Bid']) || parseFloat(row['Bid']) || parseFloat(row['Targeting Bid']) || 0.50;
 
+                        // Enhanced Metrics
+                        const campaign = row['Campaign Name'] || row['Campaign'] || 'Unknown Campaign';
+                        const adGroup = row['Ad Group Name'] || row['Ad Group'] || 'Unknown Ad Group';
+                        const impressions = parseInt(row['Impressions']) || 0;
+                        const orders = parseInt(row['Orders']) || parseInt(row['14 Day Total Orders']) || parseInt(row['30 Day Total Orders']) || 0;
+
                         let suggestedBid = originalBid;
                         let reason = 'Ignored (No clicks/spend)';
+                        let ruleCategory = 'No Action';
                         let modified = false;
 
                         // Only optimize if they spent money or got clicks
@@ -82,28 +99,19 @@ const BiddingOptimizer = () => {
                             if (clicks <= 3) {
                                 // Increase bid slightly (10%) to try to force impressions/clicks to gather data
                                 suggestedBid = originalBid * 1.10;
-                                reason = 'Inch Up (≤ 3 Clicks)';
+                                reason = `Inch Up: ${clicks} clicks - Data collection phase`;
+                                ruleCategory = 'Inch Up';
                                 modified = true;
                             }
                             // STRATEGY: RPC BIDDING (> 3 Clicks)
                             else if (clicks > 3) {
                                 if (strategy === 'rpc-only' || strategy === 'inch-up-rpc') {
-                                    // Default Target RPC logic is to bid a percentage of Historical RPC
-                                    // Historical RPC = Sales / Clicks
                                     const historicalRpc = sales / clicks;
-
-                                    // Our new bid should aim towards hitting our Target RPC constraint
-                                    // Example: if historical RPC is $5.00 and our Target RPC is $2.50, we can bid higher.
-                                    // But typically Amazon Sellers calculate it via Conversion Rate * Target CPA or Target ACOS
-                                    // For this basic tool: We use (Historical RPC * (OriginalBid / TargetRpc)) 
-                                    // OR simpler: Suggested Bid = Sales / Clicks * (User Profit Margin)
-                                    // Because the user provides "Target RPC" directly, we just weight the previous bid against it.
-
-                                    // Safe calculation for Demo (Aim to bid closer to Historical RPC without exceeding limits)
-                                    const rawRocBid = historicalRpc > 0 ? (sales / clicks) * 0.30 : originalBid * 0.5; // Example math: 30% of Historical RPC
+                                    const rawRocBid = historicalRpc > 0 ? (sales / clicks) * 0.30 : originalBid * 0.5; // Example logic
                                     suggestedBid = rawRocBid;
 
-                                    reason = `RPC ($${historicalRpc.toFixed(2)})`;
+                                    reason = `RPC Bidding: Current RPC $${historicalRpc.toFixed(2)} -> Target RPC $${targetRpc.toFixed(2)}`;
+                                    ruleCategory = 'RPC Bidding';
                                     modified = true;
                                 }
                             }
@@ -119,14 +127,36 @@ const BiddingOptimizer = () => {
                                 else if (row['Targeting Bid'] !== undefined) row['Targeting Bid'] = suggestedBid;
                                 else if (row['Bid'] !== undefined) row['Bid'] = suggestedBid;
 
+                                // Calculate display metrics
+                                const acos = sales > 0 ? (spend / sales) * 100 : 0;
+                                const roas = spend > 0 ? sales / spend : 0;
+                                const cpc = clicks > 0 ? spend / clicks : 0;
+                                const rpc = clicks > 0 ? sales / clicks : 0;
+                                const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+                                const cr = clicks > 0 ? (orders / clicks) * 100 : 0;
+                                const changePct = ((suggestedBid - originalBid) / originalBid) * 100;
+
                                 processedResults.push({
                                     id: index,
                                     keyword: row['Keyword Text'] || row['Product Targeting ID'] || `Row ${index + 2}`,
-                                    originalBid: originalBid,
-                                    clicks: clicks,
-                                    sales: sales,
-                                    suggestedBid: suggestedBid,
-                                    reason: reason
+                                    campaign,
+                                    adGroup,
+                                    originalBid,
+                                    suggestedBid,
+                                    changePct,
+                                    clicks,
+                                    impressions,
+                                    spend,
+                                    sales,
+                                    orders,
+                                    acos,
+                                    roas,
+                                    cpc,
+                                    rpc,
+                                    ctr,
+                                    cr,
+                                    reason,
+                                    ruleCategory
                                 });
                             }
                         }
@@ -187,10 +217,131 @@ const BiddingOptimizer = () => {
         }
     };
 
+    // --- DATATABLE LOGIC ---
+    const columns = [
+        { label: 'Target', key: 'keyword' },
+        { label: 'Campaign', key: 'campaign' },
+        { label: 'Ad Group', key: 'adGroup' },
+        { label: 'Strategy', key: 'ruleCategory' },
+        { label: 'Condition', key: 'reason' },
+        { label: 'Bid', key: 'originalBid', isNumeric: true, prefix: '$' },
+        { label: 'New Bid', key: 'suggestedBid', isNumeric: true, prefix: '$' },
+        { label: 'Change', key: 'changePct', isNumeric: true, suffix: '%' },
+        { label: 'Sales', key: 'sales', isNumeric: true, prefix: '$' },
+        { label: 'Spend', key: 'spend', isNumeric: true, prefix: '$' },
+        { label: 'Impr.', key: 'impressions', isNumeric: true },
+        { label: 'Clicks', key: 'clicks', isNumeric: true },
+        { label: 'Orders', key: 'orders', isNumeric: true },
+        { label: 'ACOS', key: 'acos', isNumeric: true, suffix: '%' },
+        { label: 'ROAS', key: 'roas', isNumeric: true },
+        { label: 'CPC', key: 'cpc', isNumeric: true, prefix: '$' },
+        { label: 'RPC', key: 'rpc', isNumeric: true, prefix: '$' },
+        { label: 'CTR', key: 'ctr', isNumeric: true, suffix: '%' },
+        { label: 'CR', key: 'cr', isNumeric: true, suffix: '%' }
+    ];
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const toggleFilterDropdown = (key) => {
+        if (activeFilterDropdown === key) {
+            setActiveFilterDropdown(null);
+        } else {
+            setActiveFilterDropdown(key);
+            setTempSelections(filterConfigs[key] || []);
+            setFilterSearchQuery('');
+        }
+    };
+
+    const toggleFilterSelection = (value) => {
+        setTempSelections(prev =>
+            prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
+        );
+    };
+
+    const selectAllFilter = (key, filteredOptions) => {
+        if (tempSelections.length === filteredOptions.length) {
+            setTempSelections([]); // Deselect all
+        } else {
+            setTempSelections(filteredOptions); // Select all
+        }
+    };
+
+    const applyFilter = (key) => {
+        setFilterConfigs(prev => ({
+            ...prev,
+            [key]: tempSelections
+        }));
+        setActiveFilterDropdown(null);
+        setCurrentPage(1);
+    };
+
+    const clearFilter = (key) => {
+        setFilterConfigs(prev => {
+            const newConfigs = { ...prev };
+            delete newConfigs[key];
+            return newConfigs;
+        });
+        setActiveFilterDropdown(null);
+        setCurrentPage(1);
+    };
+
+    const getUniqueValues = (key) => {
+        const unique = [...new Set(results.map(item => item[key]))];
+        unique.sort((a, b) => {
+            if (typeof a === 'number') return a - b;
+            return String(a).localeCompare(String(b));
+        });
+        return unique;
+    };
+
+    // Filter and Sort Data
+    let processedData = [...results];
+
+    // 1. Global Search
+    if (globalSearch) {
+        const lowerSearch = globalSearch.toLowerCase();
+        processedData = processedData.filter(row =>
+            Object.values(row).some(val =>
+                String(val).toLowerCase().includes(lowerSearch)
+            )
+        );
+    }
+
+    // 2. Column Filters
+    Object.keys(filterConfigs).forEach(key => {
+        const selectedValues = filterConfigs[key];
+        if (selectedValues && selectedValues.length > 0) {
+            processedData = processedData.filter(row => selectedValues.includes(row[key]));
+        }
+    });
+
+    // 3. Sorting
+    if (sortConfig.key) {
+        processedData.sort((a, b) => {
+            if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    // 4. Pagination
+    const totalPages = Math.ceil(processedData.length / itemsPerPage) || 1;
+    const paginatedData = processedData.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
     return (
-        <div className="bidding-optimizer-page container section">
+        <div className="bidding-optimizer-page section">
             {/* Header Section */}
-            <div className="optimizer-header text-center">
+            <div className="container">
+                <div className="optimizer-header text-center">
                 <div className="optimizer-icon-ring">
                     <FileSpreadsheet size={40} color="var(--color-primary)" />
                 </div>
@@ -361,68 +512,216 @@ const BiddingOptimizer = () => {
                             </div>
                         )}
 
-                        {/* Results / Processing State */}
-                        {file && (
-                            <div className="results-panel">
-                                <div className="results-header">
-                                    <div className="file-info">
-                                        <FileSpreadsheet size={24} color="var(--color-primary)" />
-                                        <div>
-                                            <h4>{file.name}</h4>
-                                            <span>{(file.size / 1024 / 1024).toFixed(2)} MB processing</span>
-                                        </div>
-                                    </div>
-                                    <div className="results-actions">
-                                        <button className="btn btn-outline" onClick={clearFile} disabled={isParsing}>
-                                            <X size={16} /> Clear
-                                        </button>
-                                        <button className="btn btn-primary" onClick={handleExport} disabled={isParsing || results.length === 0}>
-                                            <Download size={16} /> Export Optimized
-                                        </button>
-                                    </div>
-                                </div>
+                        {/* Results / Processing State placed OUTSIDE the main container to allow full width */}
+                    </div>
+                </div>
+            </div> {/* End of .optimizer-card-container */}
+            </div> {/* End of .container */}
 
+            {/* FULL WIDTH RESULTS */}
+            {file && (
+                <div className="px-4 sm:px-8 max-w-full">
+                    <div className="pop-card mt-8">
+                        <div className="pop-card-header">
+                            <div className="pop-step-number">3</div>
+                            <h3 className="text-base tracking-wide">Optimization Results</h3>
+                        </div>
+                        
+                        <div className="pop-card-body p-4 bg-white dark:bg-[var(--color-bg-dark)]">
+                            <div className="mb-4">
+                                <div className="flex gap-4 items-center flex-wrap">
+                                    <div className="flex-1 min-w-[200px]">
+                                        <input 
+                                            id="search-results" 
+                                            placeholder="Type to search globally across all fields..." 
+                                            className="pop-input w-full text-sm" 
+                                            type="text" 
+                                            value={globalSearch}
+                                            onChange={(e) => setGlobalSearch(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="relative inline-block">
+                                        <button onClick={handleExport} disabled={isParsing || processedData.length === 0} className="pop-export-btn inline-flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border border-white/10 hover:shadow-lg hover:shadow-black/20 focus:ring-[#5171ff] text-sm bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg whitespace-nowrap">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-download w-4 h-4 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+                                            Export Optimized Bulksheet ({processedData.length})
+                                        </button>
+                                    </div>
+                                    <button onClick={clearFile} disabled={isParsing} className="pop-clear-btn inline-flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border border-gray-300 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg whitespace-nowrap dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:border-gray-600">
+                                        <X size={16} className="mr-2" /> Clear All
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="pop-table-container relative overflow-x-auto shadow-md sm:rounded-lg border border-gray-200 dark:border-gray-700" style={{ maxHeight: '600px' }}>
                                 {isParsing ? (
-                                    <div className="parsing-state">
-                                        <div className="spinner"></div>
+                                    <div className="parsing-state p-8 text-center text-gray-500 dark:text-gray-400">
+                                        <div className="spinner mx-auto mb-4"></div>
                                         <p>Analyzing targeting performance and calculating optimal bids...</p>
                                     </div>
                                 ) : (
-                                    <div className="results-table-container">
-                                        <table className="results-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Target/Keyword</th>
-                                                    <th>Clicks</th>
-                                                    <th>Sales</th>
-                                                    <th>Original Bid</th>
-                                                    <th>Optimized Bid</th>
-                                                    <th>Logic Rule</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {results.map((row) => (
-                                                    <tr key={row.id}>
-                                                        <td>{row.keyword}</td>
-                                                        <td>{row.clicks}</td>
-                                                        <td>${row.sales.toFixed(2)}</td>
-                                                        <td>${row.originalBid.toFixed(2)}</td>
-                                                        <td className="highlight-bid">${row.suggestedBid.toFixed(2)}</td>
-                                                        <td><span className="rule-badge">{row.reason}</span></td>
-                                                    </tr>
+                                    <table className="pop-table w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0 z-10 shadow-sm leading-normal">
+                                            <tr>
+                                                {columns.map(col => (
+                                                    <th key={col.key} className="pop-th relative group">
+                                                        <div className="flex items-center justify-between space-x-1 cursor-pointer" onClick={() => handleSort(col.key)}>
+                                                            <span>{col.label}</span>
+                                                            {/* Sort Icons */}
+                                                            <div className="flex flex-col ml-1 text-gray-300 dark:text-gray-600">
+                                                                <svg width="12" height="12" className={`-mb-1 ${sortConfig.key === col.key && sortConfig.direction === 'asc' ? 'text-gray-900 dark:text-gray-100' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                                                                <svg width="12" height="12" className={`${sortConfig.key === col.key && sortConfig.direction === 'desc' ? 'text-gray-900 dark:text-gray-100' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Filter Toggle Button */}
+                                                        {['campaign', 'adGroup', 'ruleCategory', 'keyword'].includes(col.key) && (
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); toggleFilterDropdown(col.key); }}
+                                                                className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${filterConfigs[col.key] ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}
+                                                            >
+                                                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                                                            </button>
+                                                        )}
+
+                                                        {/* Filter Dropdown */}
+                                                        {activeFilterDropdown === col.key && (
+                                                            <div className="absolute top-full left-0 mt-1 min-w-[200px] w-max bg-white border border-gray-200 rounded shadow-lg z-50 dark:bg-gray-800 dark:border-gray-600" onClick={e => e.stopPropagation()}>
+                                                                <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <input 
+                                                                            type="text" 
+                                                                            className="w-full px-2 py-1 text-xs border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                                                                            placeholder="Search..." 
+                                                                            value={filterSearchQuery}
+                                                                            onChange={e => setFilterSearchQuery(e.target.value)}
+                                                                        />
+                                                                        <button 
+                                                                            className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:text-gray-200 whitespace-nowrap"
+                                                                            onClick={() => selectAllFilter(col.key, getUniqueValues(col.key).filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase())))}
+                                                                        >All</button>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="max-h-40 overflow-y-auto p-1 space-y-1">
+                                                                    {getUniqueValues(col.key)
+                                                                        .filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase()))
+                                                                        .map((val, idx) => (
+                                                                        <label key={idx} className="flex items-center space-x-2 px-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer rounded">
+                                                                            <input 
+                                                                                type="checkbox" 
+                                                                                className="w-3 h-3 text-blue-600 rounded"
+                                                                                checked={tempSelections.includes(val)}
+                                                                                onChange={() => toggleFilterSelection(val)}
+                                                                            />
+                                                                            <span className="text-xs truncate" title={val}>{val}</span>
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                                <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex space-x-2">
+                                                                    <button className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" onClick={() => applyFilter(col.key)}>Apply</button>
+                                                                    <button className="flex-1 px-2 py-1 text-xs border rounded hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" onClick={() => clearFilter(col.key)}>Clear</button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </th>
                                                 ))}
-                                            </tbody>
-                                        </table>
-                                        <div className="results-footer">
-                                            <p className="text-muted text-sm">Previewing top {results.length} modified rows. Export to view all changes.</p>
-                                        </div>
-                                    </div>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paginatedData.map((row) => (
+                                                <tr key={row.id} className="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
+                                                    {columns.map(col => {
+                                                        const val = row[col.key];
+                                                        
+                                                        // Special formatting overrides
+                                                        if (col.key === 'ruleCategory') {
+                                                            return <td key={col.key} className="pop-td"><span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded dark:bg-blue-200 dark:text-blue-900">{val}</span></td>;
+                                                        }
+                                                        if (col.key === 'reason') {
+                                                            return <td key={col.key} className="pop-td text-xs text-gray-500 italic dark:text-gray-400">{val}</td>;
+                                                        }
+                                                        if (col.key === 'suggestedBid') {
+                                                            return <td key={col.key} className="pop-td font-bold text-green-600 dark:text-green-400">${val.toFixed(2)}</td>;
+                                                        }
+                                                        if (col.key === 'changePct') {
+                                                            return (
+                                                                <td key={col.key} className="pop-td">
+                                                                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${val > 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'}`}>
+                                                                        {val > 0 ? '+' : ''}{val.toFixed(1)}%
+                                                                    </span>
+                                                                </td>
+                                                            );
+                                                        }
+
+                                                        // Default rendering
+                                                        return (
+                                                            <td key={col.key} className="pop-td font-medium text-gray-900 dark:text-gray-200" title={val}>
+                                                                <div className={`${['keyword', 'campaign', 'adGroup'].includes(col.key) ? 'truncate max-w-[200px]' : ''}`}>
+                                                                    {col.prefix}{col.isNumeric ? val.toFixed(2) : val}{col.suffix}
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                            {paginatedData.length === 0 && !isParsing && (
+                                                <tr>
+                                                    <td colSpan={columns.length} className="text-center py-8 text-gray-500">No optimized rows found matching priorities/filters.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 )}
                             </div>
-                        )}
+                            
+                            {/* Pagination Controls */}
+                            {!isParsing && processedData.length > 0 && (
+                                <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 border-t pt-4 dark:border-gray-700">
+                                    <div className="flex items-center gap-2">
+                                        Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, processedData.length)} of {processedData.length} entries
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <button 
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-1 rounded border disabled:opacity-50 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                                        >
+                                            Previous
+                                        </button>
+                                        <div className="flex space-x-1">
+                                            {[...Array(Math.min(5, totalPages))].map((_, idx) => {
+                                                // Simple windowing logic
+                                                let p = currentPage - 2 + idx;
+                                                if (currentPage <= 3) p = idx + 1;
+                                                else if (currentPage >= totalPages - 2) p = totalPages - 4 + idx;
+                                                
+                                                if (p > 0 && p <= totalPages) {
+                                                    return (
+                                                        <button 
+                                                            key={p} 
+                                                            onClick={() => setCurrentPage(p)}
+                                                            className={`w-8 h-8 flex items-center justify-center rounded border ${currentPage === p ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700'}`}
+                                                        >
+                                                            {p}
+                                                        </button>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                        </div>
+                                        <button 
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-1 rounded border disabled:opacity-50 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

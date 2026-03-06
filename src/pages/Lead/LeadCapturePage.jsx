@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Rocket, Mail, User, ArrowRight, CheckCircle, ShieldCheck, AlertCircle, X } from 'lucide-react';
+import { Rocket, Mail, User, ArrowRight, CheckCircle, ShieldCheck, AlertCircle, X, PhoneCall } from 'lucide-react';
 import useLeadForm from './useLeadForm';
 import './LeadCapturePage.css';
 
@@ -13,11 +13,17 @@ const TOOL_REGISTRY = {
         badge: '🚀 Free Access — Limited Time',
         headline: (
             <>
-                Stop Guessing. Start <span className="highlight-yellow">Winning</span> on Amazon.
+                FIXING AMAZON ADS FOR <span className="highlight-yellow">MILLION $$</span> BRANDS
             </>
         ),
-        subText:
-            'Our AI-powered Competitor Analysis Tool reveals exactly what your top competitors are doing right — keywords, visual themes, and pricing gaps — so you can outrank them, not chase them.',
+        subText: (
+            <ul className="lead-bullets">
+                <li><CheckCircle size={16} /> With Our In-House PPC Experts – Profit & Organic Ranks</li>
+                <li><CheckCircle size={16} /> Automation + Strategy = Results in 120 Days</li>
+                <li><CheckCircle size={16} /> Stop Wasting Ad Spend, Start Scaling Smarter</li>
+                <li><CheckCircle size={16} /> From Broken Campaigns to Millions in Sales</li>
+            </ul>
+        ),
         ctaLabel: 'Get Free Access',
         toolUrl: '', // Leave empty to show "No free tool available yet"
         successMessage: "You're in! Your private access link is on its way to your inbox.",
@@ -92,7 +98,7 @@ const LeadCapturePage = () => {
                             </h1>
 
                             {/* Supporting copy */}
-                            <p className="lead-sub">{tool.subText}</p>
+                            <div className="lead-sub">{tool.subText}</div>
 
                             {/* Email Form */}
                             <form className="lead-form" onSubmit={handleSubmit} noValidate>
@@ -182,6 +188,18 @@ const LeadCapturePage = () => {
                                         </>
                                     )}
                                 </button>
+
+                                <div className="lead-divider">OR</div>
+
+                                <a
+                                    href="https://calendly.com/m-farhanwaqar/30min"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="lead-call-btn"
+                                >
+                                    <PhoneCall size={18} />
+                                    Schedule a Call
+                                </a>
                             </form>
 
                             {/* Trust signal */}
