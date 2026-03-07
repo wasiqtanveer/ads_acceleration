@@ -17,15 +17,13 @@ const TOOL_REGISTRY = {
             </>
         ),
         subText: (
-            <ul className="lead-bullets">
-                <li><CheckCircle size={16} /> With Our In-House PPC Experts – Profit & Organic Ranks</li>
-                <li><CheckCircle size={16} /> Automation + Strategy = Results in 120 Days</li>
-                <li><CheckCircle size={16} /> Stop Wasting Ad Spend, Start Scaling Smarter</li>
-                <li><CheckCircle size={16} /> From Broken Campaigns to Millions in Sales</li>
-            </ul>
+            <p className="lead-sub-text">
+                Fix Broken Amazon PPC with Our In-House PPC Person<br />
+                Turn Ads into a Profit & Organic Ranking Engine in 120 Days
+            </p>
         ),
         ctaLabel: 'Get Free Access',
-        toolUrl: '', // Leave empty to show "No free tool available yet"
+        toolUrl: '',// Leave empty to show "No free tool available yet"
         successMessage: "You're in! Your private access link is on its way to your inbox.",
     },
 };
