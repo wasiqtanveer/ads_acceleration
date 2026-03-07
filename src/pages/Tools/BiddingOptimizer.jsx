@@ -11,6 +11,13 @@ const BiddingOptimizer = () => {
     const [minBid, setMinBid] = useState(0.25);
     const [maxBid, setMaxBid] = useState(5.00);
 
+    // ACOS Range Filter State
+    const [minAcos, setMinAcos] = useState('');
+    const [maxAcos, setMaxAcos] = useState('');
+
+    // CR Threshold State
+    const [crThreshold, setCrThreshold] = useState('');
+
     // File State
     const [file, setFile] = useState(null);
     const [isParsing, setIsParsing] = useState(false);
@@ -321,11 +328,11 @@ const BiddingOptimizer = () => {
     };
 
     const handleExport = () => {
-        if (!workbookData || results.length === 0) return;
+        if (!workbookData || processedData.length === 0) return;
 
         try {
-            // Create a new array of objects for the export containing ONLY modified rows
-            const exportData = results.map(item => {
+            // Create a new array of objects for the export containing ONLY filtered/modified rows
+            const exportData = processedData.map(item => {
                 const row = workbookData.modifiedJson[item.id];
 
                 // Clone the row so we don't mutate the original in memory
@@ -473,6 +480,21 @@ const BiddingOptimizer = () => {
                 String(val).toLowerCase().includes(lowerSearch)
             )
         );
+    }
+
+    // 1b. ACOS Range Filter — keep only rows OUTSIDE the min–max range
+    const parsedMinAcos = parseFloat(minAcos);
+    const parsedMaxAcos = parseFloat(maxAcos);
+    if (!isNaN(parsedMinAcos) && !isNaN(parsedMaxAcos)) {
+        processedData = processedData.filter(row =>
+            row.acos < parsedMinAcos || row.acos > parsedMaxAcos
+        );
+    }
+
+    // 1c. CR Threshold Filter — keep only rows with CR below the threshold
+    const parsedCrThreshold = parseFloat(crThreshold);
+    if (!isNaN(parsedCrThreshold)) {
+        processedData = processedData.filter(row => row.cr < parsedCrThreshold);
     }
 
     // 2. Column Filters
@@ -633,6 +655,72 @@ const BiddingOptimizer = () => {
                                     />
                                 </div>
                             </div>
+
+                            <div className="form-group">
+                                <label>Min ACOS Threshold</label>
+                                <div className="input-with-symbol">
+                                    <span className="symbol">%</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={minAcos}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (maxAcos !== '' && val !== '' && parseFloat(val) > parseFloat(maxAcos)) return;
+                                            setMinAcos(val);
+                                        }}
+                                        placeholder="e.g. 20"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Max ACOS Threshold</label>
+                                <div className="input-with-symbol">
+                                    <span className="symbol">%</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={maxAcos}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (minAcos !== '' && val !== '' && parseFloat(val) < parseFloat(minAcos)) return;
+                                            setMaxAcos(val);
+                                        }}
+                                        placeholder="e.g. 30"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Conversion Rate Threshold</label>
+                                <div className="input-with-symbol">
+                                    <span className="symbol">%</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.5"
+                                        value={crThreshold}
+                                        onChange={(e) => setCrThreshold(e.target.value)}
+                                        placeholder="e.g. 5"
+                                    />
+                                </div>
+                            </div>
+
+                            {(minAcos !== '' && maxAcos !== '' || crThreshold !== '') && (
+                                <div className="form-group group-full-width">
+                                    <div className="acos-filter-hint">
+                                        <AlertCircle size={14} />
+                                        <span>
+                                            {minAcos !== '' && maxAcos !== '' && <>Showing ACOS below {minAcos}% or above {maxAcos}% (excluding {minAcos}%–{maxAcos}% range)</>}
+                                            {minAcos !== '' && maxAcos !== '' && crThreshold !== '' && ' | '}
+                                            {crThreshold !== '' && <>Showing CR below {crThreshold}%</>}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
