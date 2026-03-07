@@ -1360,3 +1360,268 @@ body:not(.light-mode) .page-num.active {
     color: #0A0A0A;
     box-shadow: 0 2px 8px rgba(255, 204, 0, 0.3);
 }
+
+/* ============================================
+   PREVIEW IMPACT BUTTON — Pulsing Animation
+   ============================================ */
+.preview-impact-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 10px;
+    border: 2px solid var(--color-primary);
+    cursor: pointer;
+    background: transparent;
+    color: var(--color-primary);
+    white-space: nowrap;
+    transition: all 0.2s;
+    animation: pulseGlow 2s ease-in-out infinite;
+    position: relative;
+}
+
+.preview-impact-btn:hover {
+    background: var(--color-primary);
+    color: white;
+    transform: translateY(-1px);
+    animation: none;
+    box-shadow: 0 4px 18px rgba(229, 9, 20, 0.45);
+}
+
+body:not(.light-mode) .preview-impact-btn:hover {
+    color: #0A0A0A;
+    box-shadow: 0 4px 18px rgba(255, 204, 0, 0.4);
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(229, 9, 20, 0);
+    }
+}
+
+body:not(.light-mode) .preview-impact-btn {
+    animation-name: pulseGlowDark;
+}
+
+@keyframes pulseGlowDark {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.45);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(255, 204, 0, 0);
+    }
+}
+
+/* ============================================
+   IMPACT PREVIEW MODAL
+   ============================================ */
+.impact-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    animation: fadeInOverlay 0.2s ease-out;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.impact-modal {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    max-width: 540px;
+    width: 100%;
+    padding: 2rem;
+    position: relative;
+    animation: slideUpModal 0.25s ease-out;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes slideUpModal {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.impact-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    padding: 0.25rem;
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+
+.impact-modal-close:hover {
+    color: var(--color-primary);
+    background: rgba(229, 9, 20, 0.08);
+}
+
+body:not(.light-mode) .impact-modal-close:hover {
+    background: rgba(255, 204, 0, 0.08);
+}
+
+.impact-modal-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.impact-modal-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: rgba(229, 9, 20, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+}
+
+body:not(.light-mode) .impact-modal-icon {
+    background: rgba(255, 204, 0, 0.1);
+}
+
+.impact-modal-header h2 {
+    font-size: 1.35rem;
+    margin: 0 0 0.4rem;
+    color: var(--color-text);
+}
+
+.impact-modal-header .text-muted {
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* Stats Grid */
+.impact-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.impact-stat-card {
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.impact-stat-card.savings {
+    grid-column: 1 / -1;
+    background: rgba(229, 9, 20, 0.06);
+    border-color: rgba(229, 9, 20, 0.2);
+}
+
+body:not(.light-mode) .impact-stat-card.savings {
+    background: rgba(255, 204, 0, 0.06);
+    border-color: rgba(255, 204, 0, 0.2);
+}
+
+.impact-stat-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    font-weight: 600;
+}
+
+.impact-stat-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.impact-stat-value.projected {
+    color: var(--color-primary);
+}
+
+.impact-stat-value.savings-value {
+    color: #22c55e;
+    font-size: 1.6rem;
+}
+
+/* Disclaimer */
+.impact-disclaimer {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    line-height: 1.55;
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-dark);
+    border-radius: 8px;
+    border-left: 3px solid var(--color-primary);
+}
+
+/* Modal Actions */
+.impact-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.impact-confirm-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+    color: white;
+    transition: all 0.2s;
+}
+
+body:not(.light-mode) .impact-confirm-btn {
+    color: #0A0A0A;
+}
+
+.impact-confirm-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(229, 9, 20, 0.4);
+}
+
+body:not(.light-mode) .impact-confirm-btn:hover {
+    box-shadow: 0 4px 14px rgba(255, 204, 0, 0.35);
+}
+
+.impact-cancel-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.impact-cancel-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}

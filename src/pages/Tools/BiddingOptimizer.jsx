@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, ChevronDown, Download, AlertCircle, Settings, X, FileSpreadsheet, TrendingUp, TrendingDown } from 'lucide-react';
+import { Upload, ChevronDown, Download, AlertCircle, Settings, X, FileSpreadsheet, TrendingUp, TrendingDown, Eye, DollarSign } from 'lucide-react';
 import './BiddingOptimizer.css';
 import * as XLSX from 'xlsx';
 
 const BiddingOptimizer = () => {
     // Strategy Settings State
-    const [strategy, setStrategy] = useState('inch-up-rpc');
+    const [strategy, setStrategy] = useState('inch-up-acos');
     const [adType, setAdType] = useState('sponsored-products');
-    const [targetRpc, setTargetRpc] = useState(2.50);
+    const [targetAcos, setTargetAcos] = useState(30);
     const [minBid, setMinBid] = useState(0.25);
     const [maxBid, setMaxBid] = useState(5.00);
 
@@ -15,8 +15,8 @@ const BiddingOptimizer = () => {
     const [minAcos, setMinAcos] = useState('');
     const [maxAcos, setMaxAcos] = useState('');
 
-    // CR Threshold State
-    const [crThreshold, setCrThreshold] = useState('');
+    // Placement Multiplier (% increase active in Campaign Manager)
+    const [placementMultiplier, setPlacementMultiplier] = useState(0);
 
     // File State
     const [file, setFile] = useState(null);
@@ -35,6 +35,7 @@ const BiddingOptimizer = () => {
 
     // UI State
     const [error, setError] = useState('');
+    const [showImpactModal, setShowImpactModal] = useState(false);
 
     const handleFileUpload = (e) => {
         const uploadedFile = e.target.files[0];
@@ -58,7 +59,7 @@ const BiddingOptimizer = () => {
             parseExcelInfo(file);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [file, adType, strategy, targetRpc, minBid, maxBid]);
+    }, [file, adType, strategy, targetAcos, minBid, maxBid, placementMultiplier]);
 
     const parseExcelInfo = (uploadedFile) => {
         setIsParsing(true);
@@ -210,25 +211,77 @@ const BiddingOptimizer = () => {
                         let ruleCategory = 'No Action';
                         let modified = false;
 
-                        const historicalRpc = clicks > 0 ? sales / clicks : 0;
+                        // ACoS-based bidding calculations
+                        const currentAcos = sales > 0 ? (spend / sales) * 100 : 0;
+                        const cr = clicks > 0 ? (orders / clicks) : 0;
+                        const avgOrderValue = orders > 0 ? sales / orders : 0;
 
-                        if (strategy === 'inch-up-rpc' && clicks <= 3) {
-                            reason = `Inch Up: ${clicks} clicks - Data collection phase`;
+                        if (strategy === 'inch-up-acos' && clicks <= 3) {
+                            if (clicks === 0) {
+                                reason = `Inch Up: 0 clicks - Data collection phase (flat +$0.10)`;
+                                suggestedBid = originalBid + 0.10;
+                            } else {
+                                reason = `Inch Up: ${clicks} clicks - Data collection phase (+10%)`;
+                                suggestedBid = originalBid * 1.10;
+                            }
                             ruleCategory = 'Inch Up';
-                            suggestedBid = originalBid * 1.10;
                             modified = true;
                         } else {
-                            if (historicalRpc > 0) {
-                                const ratio = targetRpc / historicalRpc;
-                                suggestedBid = originalBid * ratio;
-                                reason = `RPC Bidding: Current RPC $${historicalRpc.toFixed(2)} -> Target RPC $${targetRpc.toFixed(2)}`;
-                                ruleCategory = 'RPC Bidding';
+                            // Target ACoS model: Max CPC = RPC × Target ACoS
+                            const rpc = avgOrderValue * cr;
+                            const targetAcosDecimal = targetAcos / 100;
+                            const maxAllowedCpc = rpc * targetAcosDecimal;
+
+                            if (rpc > 0 && maxAllowedCpc > 0) {
+                                suggestedBid = maxAllowedCpc;
+                                reason = `ACoS Bidding: Current ACoS ${currentAcos.toFixed(1)}% → Target ACoS ${targetAcos}% | Max CPC $${maxAllowedCpc.toFixed(2)}`;
+                                ruleCategory = 'ACoS Bidding';
                             } else {
                                 suggestedBid = originalBid * 1.05;
-                                reason = `RPC Bidding: Current RPC $0.00 -> Target RPC $${targetRpc.toFixed(2)}`;
-                                ruleCategory = 'RPC Bidding';
+                                reason = `ACoS Bidding: No sales data → slight increase toward Target ACoS ${targetAcos}%`;
+                                ruleCategory = 'ACoS Bidding';
                             }
                             modified = true;
+                        }
+
+                        // ── GUARDRAILS ──
+                        if (modified) {
+                            const reasons = [];
+
+                            // 1. ACoS Guardrail: force ≥20% decrease when ACoS > 50%
+                            if (currentAcos > 50 && sales > 0) {
+                                const maxBidAfterGuardrail = originalBid * 0.80;
+                                if (suggestedBid > maxBidAfterGuardrail) {
+                                    suggestedBid = maxBidAfterGuardrail;
+                                }
+                                reasons.push(`ACoS ${currentAcos.toFixed(1)}%>50% → forced ≥20% decrease`);
+                                ruleCategory = 'ACoS Guardrail';
+                            }
+
+                            // 2. High-ACoS Increase Freeze: if ACoS > Target, never increase bid
+                            if (currentAcos > targetAcos && sales > 0 && suggestedBid > originalBid) {
+                                suggestedBid = originalBid;
+                                reasons.push(`ACoS ${currentAcos.toFixed(1)}%>${targetAcos}% → increase frozen`);
+                                ruleCategory = 'Increase Frozen';
+                            }
+
+                            // 3. Bid Volatility Cap: max +20% increase per cycle
+                            const maxIncreaseBid = originalBid * 1.20;
+                            if (suggestedBid > maxIncreaseBid) {
+                                suggestedBid = maxIncreaseBid;
+                                reasons.push(`Capped at +20% max increase`);
+                            }
+
+                            // 4. Placement Awareness: lower bid to account for active multipliers
+                            if (placementMultiplier > 0) {
+                                const adjustedBid = suggestedBid / (1 + placementMultiplier / 100);
+                                suggestedBid = adjustedBid;
+                                reasons.push(`Adjusted for ${placementMultiplier}% placement multiplier`);
+                            }
+
+                            if (reasons.length > 0) {
+                                reason += ' | ' + reasons.join(' | ');
+                            }
                         }
 
                         if (modified) {
@@ -482,19 +535,17 @@ const BiddingOptimizer = () => {
         );
     }
 
-    // 1b. ACOS Range Filter — keep only rows OUTSIDE the min–max range
+    // 1b. ACOS Range Filter — open-ended support
     const parsedMinAcos = parseFloat(minAcos);
     const parsedMaxAcos = parseFloat(maxAcos);
-    if (!isNaN(parsedMinAcos) && !isNaN(parsedMaxAcos)) {
+    const hasMin = !isNaN(parsedMinAcos);
+    const hasMax = !isNaN(parsedMaxAcos);
+    if (hasMin || hasMax) {
+        const effectiveMin = hasMin ? parsedMinAcos : 0;
+        const effectiveMax = hasMax ? parsedMaxAcos : Infinity;
         processedData = processedData.filter(row =>
-            row.acos < parsedMinAcos || row.acos > parsedMaxAcos
+            row.acos < effectiveMin || row.acos > effectiveMax
         );
-    }
-
-    // 1c. CR Threshold Filter — keep only rows with CR below the threshold
-    const parsedCrThreshold = parseFloat(crThreshold);
-    if (!isNaN(parsedCrThreshold)) {
-        processedData = processedData.filter(row => row.cr < parsedCrThreshold);
     }
 
     // 2. Column Filters
@@ -521,6 +572,24 @@ const BiddingOptimizer = () => {
         currentPage * itemsPerPage
     );
 
+    // ── IMPACT ESTIMATION ENGINE ──
+    // For every keyword where the bid is being reduced, estimate new spend
+    const impactStats = (() => {
+        const reduced = processedData.filter(row => row.suggestedBid < row.originalBid);
+        const totalCurrentSpend = reduced.reduce((sum, r) => sum + r.spend, 0);
+        const totalProjectedSpend = reduced.reduce((sum, r) => {
+            if (r.originalBid === 0) return sum;
+            return sum + r.spend * (r.suggestedBid / r.originalBid);
+        }, 0);
+        const totalSavings = totalCurrentSpend - totalProjectedSpend;
+        return {
+            count: reduced.length,
+            totalCurrentSpend,
+            totalProjectedSpend,
+            totalSavings,
+        };
+    })();
+
     return (
         <div className="bidding-optimizer-page section">
             {/* Header Section */}
@@ -543,9 +612,9 @@ const BiddingOptimizer = () => {
                             </div>
                             <div className="card-back">
                                 <ul>
-                                    <li><strong>Smart Bidding:</strong> Uses "Inch Up" & RPC methodology.</li>
-                                    <li><strong>Performance-Based:</strong> Adjusts with custom thresholds.</li>
-                                    <li><strong>Constraints:</strong> Target RPC & Min/Max limits.</li>
+                                    <li><strong>Smart Bidding:</strong> Uses "Inch Up" & Target ACoS methodology.</li>
+                                    <li><strong>Performance-Based:</strong> Adjusts bids based on ACoS profitability.</li>
+                                    <li><strong>Constraints:</strong> Target ACoS & Min/Max bid limits.</li>
                                     <li><strong>Real-time Output:</strong> Calculates changes instantly.</li>
                                 </ul>
                             </div>
@@ -602,28 +671,28 @@ const BiddingOptimizer = () => {
                             <div className="form-group group-full-width">
                                 <label>Bidding Strategy</label>
                                 <div className="radio-pill-group double">
-                                    <label className={`radio-pill ${strategy === 'inch-up-rpc' ? 'active' : ''}`}>
-                                        <input type="radio" value="inch-up-rpc" checked={strategy === 'inch-up-rpc'} onChange={(e) => setStrategy(e.target.value)} />
-                                        Inch Up + RPC Bidding
+                                    <label className={`radio-pill ${strategy === 'inch-up-acos' ? 'active' : ''}`}>
+                                        <input type="radio" value="inch-up-acos" checked={strategy === 'inch-up-acos'} onChange={(e) => setStrategy(e.target.value)} />
+                                        Inch Up + ACoS Bidding
                                     </label>
-                                    <label className={`radio-pill ${strategy === 'rpc-only' ? 'active' : ''}`}>
-                                        <input type="radio" value="rpc-only" checked={strategy === 'rpc-only'} onChange={(e) => setStrategy(e.target.value)} />
-                                        Strict RPC Bidding
+                                    <label className={`radio-pill ${strategy === 'acos-only' ? 'active' : ''}`}>
+                                        <input type="radio" value="acos-only" checked={strategy === 'acos-only'} onChange={(e) => setStrategy(e.target.value)} />
+                                        Strict ACoS Bidding
                                     </label>
                                 </div>
                             </div>
 
                             <div className="form-group">
-                                <label>Target Revenue Per Click (RPC)</label>
+                                <label>Target ACoS (%)</label>
                                 <div className="input-with-symbol">
-                                    <span className="symbol">$</span>
+                                    <span className="symbol">%</span>
                                     <input
                                         type="number"
-                                        min="0.10"
-                                        step="0.10"
-                                        value={targetRpc}
-                                        onChange={(e) => setTargetRpc(parseFloat(e.target.value))}
-                                        placeholder="2.50"
+                                        min="1"
+                                        step="1"
+                                        value={targetAcos}
+                                        onChange={(e) => setTargetAcos(parseFloat(e.target.value))}
+                                        placeholder="30"
                                     />
                                 </div>
                             </div>
@@ -652,6 +721,22 @@ const BiddingOptimizer = () => {
                                         step="0.10"
                                         value={maxBid}
                                         onChange={(e) => setMaxBid(parseFloat(e.target.value))}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Placement Multiplier</label>
+                                <div className="input-with-symbol">
+                                    <span className="symbol">%</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="900"
+                                        step="10"
+                                        value={placementMultiplier}
+                                        onChange={(e) => setPlacementMultiplier(parseFloat(e.target.value) || 0)}
+                                        placeholder="0"
                                     />
                                 </div>
                             </div>
@@ -694,30 +779,11 @@ const BiddingOptimizer = () => {
                                 </div>
                             </div>
 
-                            <div className="form-group">
-                                <label>Conversion Rate Threshold</label>
-                                <div className="input-with-symbol">
-                                    <span className="symbol">%</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.5"
-                                        value={crThreshold}
-                                        onChange={(e) => setCrThreshold(e.target.value)}
-                                        placeholder="e.g. 5"
-                                    />
-                                </div>
-                            </div>
-
-                            {(minAcos !== '' && maxAcos !== '' || crThreshold !== '') && (
+                            {minAcos !== '' && maxAcos !== '' && (
                                 <div className="form-group group-full-width">
                                     <div className="acos-filter-hint">
                                         <AlertCircle size={14} />
-                                        <span>
-                                            {minAcos !== '' && maxAcos !== '' && <>Showing ACOS below {minAcos}% or above {maxAcos}% (excluding {minAcos}%–{maxAcos}% range)</>}
-                                            {minAcos !== '' && maxAcos !== '' && crThreshold !== '' && ' | '}
-                                            {crThreshold !== '' && <>Showing CR below {crThreshold}%</>}
-                                        </span>
+                                        <span>Showing results with ACOS below {minAcos}% or above {maxAcos}% (excluding {minAcos}%–{maxAcos}% range)</span>
                                     </div>
                                 </div>
                             )}
@@ -768,6 +834,53 @@ const BiddingOptimizer = () => {
                 </div> {/* End of .optimizer-card-container */}
             </div> {/* End of .container */}
 
+            {/* IMPACT PREVIEW MODAL */}
+            {showImpactModal && (
+                <div className="impact-modal-overlay" onClick={() => setShowImpactModal(false)}>
+                    <div className="impact-modal" onClick={(e) => e.stopPropagation()}>
+                        <button className="impact-modal-close" onClick={() => setShowImpactModal(false)}>
+                            <X size={20} />
+                        </button>
+                        <div className="impact-modal-header">
+                            <div className="impact-modal-icon">
+                                <DollarSign size={28} />
+                            </div>
+                            <h2>Estimated Spend Impact</h2>
+                            <p className="text-muted">
+                                {maxAcos !== '' ? `Keywords with ACOS > ${maxAcos}%` : minAcos !== '' ? `Keywords with ACOS < ${minAcos}%` : 'All keywords with bid reductions'}
+                                {' — '}{impactStats.count} keyword{impactStats.count !== 1 ? 's' : ''} affected
+                            </p>
+                        </div>
+                        <div className="impact-stats-grid">
+                            <div className="impact-stat-card">
+                                <span className="impact-stat-label">Original Spend</span>
+                                <span className="impact-stat-value">${impactStats.totalCurrentSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="impact-stat-card">
+                                <span className="impact-stat-label">Estimated New Spend</span>
+                                <span className="impact-stat-value projected">${impactStats.totalProjectedSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="impact-stat-card savings">
+                                <span className="impact-stat-label">Total Estimated Savings</span>
+                                <span className="impact-stat-value savings-value">${impactStats.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                        <p className="impact-disclaimer">
+                            This change is estimated to reduce your spend by <strong>${impactStats.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> on high-ACOS keywords. Actual results depend on auction dynamics.
+                        </p>
+                        <div className="impact-modal-actions">
+                            <button className="impact-confirm-btn" onClick={() => { setShowImpactModal(false); handleExport(); }}>
+                                <Download size={16} />
+                                Confirm &amp; Export
+                            </button>
+                            <button className="impact-cancel-btn" onClick={() => setShowImpactModal(false)}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* FULL WIDTH RESULTS */}
             {file && (
                 <div style={{ padding: '0 5%', marginTop: '2rem' }}>
@@ -789,6 +902,15 @@ const BiddingOptimizer = () => {
                                         onChange={(e) => setGlobalSearch(e.target.value)}
                                     />
                                 </div>
+                                {impactStats.count > 0 && (
+                                    <button
+                                        className="preview-impact-btn"
+                                        onClick={() => setShowImpactModal(true)}
+                                    >
+                                        <Eye size={18} />
+                                        Preview Impact ({impactStats.count})
+                                    </button>
+                                )}
                                 <button onClick={handleExport} disabled={isParsing || processedData.length === 0} className="export-btn">
                                     <Download size={18} />
                                     Export Optimized Bulksheet ({processedData.length})
