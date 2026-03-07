@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Rocket, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,6 +10,7 @@ const Navbar = () => {
     const [activeSection, setActiveSection] = useState('home');
     const { isDarkMode, toggleTheme } = useTheme();
     const location = useLocation();
+    const navigate = useNavigate();
 
     // ScrollSpy Logic
     useEffect(() => {
@@ -65,11 +66,24 @@ const Navbar = () => {
 
     const scrollToSection = (e, id) => {
         e.preventDefault();
-        const element = document.getElementById(id);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-        }
         setIsOpen(false);
+
+        // If we're already on the home page, just scroll
+        if (location.pathname === '/') {
+            const element = document.getElementById(id);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else {
+            // Navigate to home first, then scroll after the page renders
+            navigate('/');
+            setTimeout(() => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 100);
+        }
     };
 
     const handleHomeClick = (e) => {

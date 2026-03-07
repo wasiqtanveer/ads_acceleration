@@ -28,6 +28,10 @@
     position: relative;
 }
 
+body:not(.light-mode) .optimizer-icon-ring {
+    background: rgba(255, 204, 0, 0.1);
+}
+
 .optimizer-icon-ring::after {
     content: '';
     position: absolute;
@@ -35,6 +39,10 @@
     border: 2px solid rgba(229, 9, 20, 0.2);
     border-radius: 50%;
     animation: rotatePulse 4s linear infinite;
+}
+
+body:not(.light-mode) .optimizer-icon-ring::after {
+    border-color: rgba(255, 204, 0, 0.2);
 }
 
 @keyframes rotatePulse {
@@ -99,6 +107,11 @@
     border-color: rgba(229, 9, 20, 0.2);
     align-items: flex-start;
     padding: 2rem;
+}
+
+body:not(.light-mode) .instruction-card .card-back {
+    background: var(--color-bg-card);
+    border-color: rgba(255, 204, 0, 0.2);
 }
 
 body.light-mode .instruction-card .card-back {
@@ -190,10 +203,14 @@ body.light-mode .instruction-card .card-back {
     border-bottom: 1px solid var(--color-border);
 }
 
+body:not(.light-mode) .step-header {
+    background: rgba(255, 204, 0, 0.04);
+}
+
 .step-number {
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, var(--color-primary), #bb0710);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -203,6 +220,11 @@ body.light-mode .instruction-card .card-back {
     font-family: var(--font-heading);
     box-shadow: 0 5px 15px rgba(229, 9, 20, 0.4);
     flex-shrink: 0;
+}
+
+body:not(.light-mode) .step-number {
+    color: #0A0A0A;
+    box-shadow: 0 5px 15px rgba(255, 204, 0, 0.3);
 }
 
 .step-header h2 {
@@ -253,6 +275,11 @@ body.light-mode .instruction-card .card-back {
     border-radius: 8px;
     font-size: 0.85rem;
     color: var(--color-text-muted);
+}
+
+body:not(.light-mode) .acos-filter-hint {
+    background: rgba(255, 204, 0, 0.06);
+    border-color: rgba(255, 204, 0, 0.15);
 }
 
 /* Radio Pill Selectors */
@@ -324,6 +351,10 @@ body.dark-mode .radio-pill-group {
     background: rgba(229, 9, 20, 0.05);
 }
 
+body:not(.light-mode) .radio-pill:hover:not(.active) {
+    background: rgba(255, 204, 0, 0.06);
+}
+
 .radio-pill.active {
     color: white;
     font-weight: 600;
@@ -333,6 +364,14 @@ body.dark-mode .radio-pill-group {
     opacity: 1;
     transform: scale(1);
     box-shadow: 0 4px 15px rgba(229, 9, 20, 0.3);
+}
+
+body:not(.light-mode) .radio-pill.active {
+    color: #0A0A0A;
+}
+
+body:not(.light-mode) .radio-pill.active::before {
+    box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3);
 }
 
 .input-with-symbol {
@@ -365,6 +404,10 @@ body.dark-mode .radio-pill-group {
     box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.1);
 }
 
+body:not(.light-mode) .input-with-symbol input:focus {
+    box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.1);
+}
+
 /* Step 2 Upload Zone */
 .step-content {
     padding: 2.5rem;
@@ -383,6 +426,10 @@ body.dark-mode .radio-pill-group {
 .upload-zone:hover {
     border-color: var(--color-primary);
     background: rgba(229, 9, 20, 0.02);
+}
+
+body:not(.light-mode) .upload-zone:hover {
+    background: rgba(255, 204, 0, 0.02);
 }
 
 .upload-zone input[type="file"] {
@@ -781,6 +828,10 @@ body.dark-mode td .dark\:text-green-400 {
     background: rgba(229, 9, 20, 0.05);
 }
 
+body:not(.light-mode) .optimizer-results-header {
+    background: rgba(255, 204, 0, 0.04);
+}
+
 .optimizer-results-header h3 {
     margin: 0;
     font-size: 1.1rem;
@@ -793,7 +844,7 @@ body.dark-mode td .dark\:text-green-400 {
     width: 28px;
     height: 28px;
     font-size: 0.85rem;
-    background: linear-gradient(135deg, var(--color-primary), #bb0710);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -801,6 +852,10 @@ body.dark-mode td .dark\:text-green-400 {
     color: white;
     font-weight: 700;
     flex-shrink: 0;
+}
+
+body:not(.light-mode) .step-number.mini {
+    color: #0A0A0A;
 }
 
 .optimizer-results-body {
@@ -839,6 +894,10 @@ body.dark-mode td .dark\:text-green-400 {
     box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.15);
 }
 
+body:not(.light-mode) .optimizer-search-input:focus {
+    box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.12);
+}
+
 .export-btn {
     display: inline-flex;
     align-items: center;
@@ -849,15 +908,23 @@ body.dark-mode td .dark\:text-green-400 {
     border-radius: 10px;
     border: none;
     cursor: pointer;
-    background: linear-gradient(135deg, var(--color-primary), #bb0710);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
     color: white;
     white-space: nowrap;
     transition: all 0.2s;
 }
 
+body:not(.light-mode) .export-btn {
+    color: #0A0A0A;
+}
+
 .export-btn:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(229, 9, 20, 0.4);
+}
+
+body:not(.light-mode) .export-btn:hover:not(:disabled) {
+    box-shadow: 0 4px 12px rgba(255, 204, 0, 0.35);
 }
 
 .export-btn:disabled {
@@ -985,6 +1052,11 @@ body.dark-mode td .dark\:text-green-400 {
     background: rgba(229, 9, 20, 0.08);
 }
 
+body:not(.light-mode) .filter-toggle-btn:hover,
+body:not(.light-mode) .filter-toggle-btn.is-active {
+    background: rgba(255, 204, 0, 0.08);
+}
+
 /* Filter Dropdown */
 .filter-dropdown-menu {
     position: absolute;
@@ -1064,6 +1136,10 @@ body.dark-mode td .dark\:text-green-400 {
     background: rgba(229, 9, 20, 0.06);
 }
 
+body:not(.light-mode) .filter-option:hover {
+    background: rgba(255, 204, 0, 0.06);
+}
+
 .filter-checkbox {
     accent-color: var(--color-primary);
     width: 14px;
@@ -1125,6 +1201,10 @@ body.dark-mode td .dark\:text-green-400 {
     background: rgba(229, 9, 20, 0.03);
 }
 
+body:not(.light-mode) .optimizer-tr:hover {
+    background: rgba(255, 204, 0, 0.03);
+}
+
 .optimizer-td {
     padding: 0.6rem 0.85rem;
     white-space: nowrap;
@@ -1168,6 +1248,10 @@ body.dark-mode td .dark\:text-green-400 {
     background: rgba(229, 9, 20, 0.1);
     color: var(--color-primary);
     letter-spacing: 0.3px;
+}
+
+body:not(.light-mode) .strategy-badge {
+    background: rgba(255, 204, 0, 0.1);
 }
 
 .badge-pct {
@@ -1270,4 +1354,9 @@ body.dark-mode td .dark\:text-green-400 {
     color: white;
     border-color: var(--color-primary);
     box-shadow: 0 2px 8px rgba(229, 9, 20, 0.3);
+}
+
+body:not(.light-mode) .page-num.active {
+    color: #0A0A0A;
+    box-shadow: 0 2px 8px rgba(255, 204, 0, 0.3);
 }
