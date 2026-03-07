@@ -29,11 +29,14 @@ This document contains the source code and configuration for the Amazon Agency R
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.27",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "gh-pages": "^6.3.0",
     "globals": "^16.5.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.1",
     "vite": "^7.3.1"
   }
 }
@@ -3993,12 +3996,10 @@ const TOOL_REGISTRY = {
             </>
         ),
         subText: (
-            <ul className="lead-bullets">
-                <li><CheckCircle size={16} /> With Our In-House PPC Experts – Profit & Organic Ranks</li>
-                <li><CheckCircle size={16} /> Automation + Strategy = Results in 120 Days</li>
-                <li><CheckCircle size={16} /> Stop Wasting Ad Spend, Start Scaling Smarter</li>
-                <li><CheckCircle size={16} /> From Broken Campaigns to Millions in Sales</li>
-            </ul>
+            <p className="lead-sub-text">
+                Fix Broken Amazon PPC with Our In-House PPC Person<br />
+                Turn Ads into a Profit & Organic Ranking Engine in 120 Days
+            </p>
         ),
         ctaLabel: 'Get Free Access',
         toolUrl: '', // Leave empty to show "No free tool available yet"
@@ -5193,12 +5194,525 @@ body.dark-mode td .dark\:text-green-400 {
     color: #4ade80 !important;
     font-weight: 700;
 }
+
+/* =============================================
+   OPTIMIZER RESULTS CARD & TABLE
+   ============================================= */
+
+.optimizer-results-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    overflow: hidden;
+    margin-top: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.optimizer-results-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    background: rgba(229, 9, 20, 0.05);
+}
+
+.optimizer-results-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--color-text);
+}
+
+.step-number.mini {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+    background: linear-gradient(135deg, var(--color-primary), #bb0710);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.optimizer-results-body {
+    padding: 1.5rem;
+    background: var(--color-bg-card);
+}
+
+/* Search & Action Bar */
+.optimizer-toolbar {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
+.optimizer-search-wrap {
+    flex: 1;
+    min-width: 200px;
+}
+
+.optimizer-search-input {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.optimizer-search-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.15);
+}
+
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--color-primary), #bb0710);
+    color: white;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.export-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(229, 9, 20, 0.4);
+}
+
+.export-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.7rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.clear-btn:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+/* Table Wrapper */
+.optimizer-table-container {
+    max-height: 650px;
+    overflow: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-dark);
+}
+
+/* Table */
+.optimizer-table {
+    width: 100%;
+    text-align: left;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8rem;
+}
+
+/* Table Head */
+.optimizer-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.optimizer-th {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--color-text-muted);
+    background: var(--color-bg-card);
+    border-bottom: 2px solid var(--color-border);
+    white-space: nowrap;
+    position: relative;
+    user-select: none;
+}
+
+.optimizer-th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.optimizer-th:last-child {
+    border-top-right-radius: 12px;
+}
+
+/* Sort & Filter inside TH */
+.th-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.th-content:hover {
+    color: var(--color-text);
+}
+
+.sort-icons {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    line-height: 0;
+}
+
+.sort-icon {
+    opacity: 0.3;
+    transition: opacity 0.15s;
+}
+
+.sort-icon.active {
+    opacity: 1;
+    color: var(--color-primary);
+}
+
+/* Filter Button */
+.filter-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    margin-left: 0.25rem;
+    border-radius: 4px;
+    opacity: 0.5;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+}
+
+.filter-toggle-btn:hover,
+.filter-toggle-btn.is-active {
+    opacity: 1;
+    color: var(--color-primary);
+    background: rgba(229, 9, 20, 0.08);
+}
+
+/* Filter Dropdown */
+.filter-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 220px;
+    max-width: 300px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    z-index: 50;
+    overflow: hidden;
+}
+
+.filter-dropdown-header {
+    padding: 0.65rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.filter-search-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-search-input {
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+    outline: none;
+}
+
+.filter-search-input:focus {
+    border-color: var(--color-primary);
+}
+
+.filter-all-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.filter-all-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.filter-dropdown-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.35rem 0;
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.65rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--color-text);
+    transition: background 0.1s;
+}
+
+.filter-option:hover {
+    background: rgba(229, 9, 20, 0.06);
+}
+
+.filter-checkbox {
+    accent-color: var(--color-primary);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.filter-option-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+.filter-dropdown-footer {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.65rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.filter-action-btn {
+    flex: 1;
+    padding: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.filter-action-btn.apply {
+    background: var(--color-primary);
+    color: white;
+}
+
+.filter-action-btn.apply:hover {
+    opacity: 0.85;
+}
+
+.filter-action-btn.clear {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.filter-action-btn.clear:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+/* Table Body Rows */
+.optimizer-tr {
+    transition: background 0.15s;
+}
+
+.optimizer-tr:hover {
+    background: rgba(229, 9, 20, 0.03);
+}
+
+.optimizer-td {
+    padding: 0.6rem 0.85rem;
+    white-space: nowrap;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+.optimizer-tr:last-child .optimizer-td {
+    border-bottom: none;
+}
+
+/* Truncated text cells */
+.truncate-md {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Special cell styling */
+.suggested-bid-cell {
+    color: var(--color-primary);
+    font-weight: 700;
+}
+
+.reason-cell {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+/* Badges */
+.strategy-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 100px;
+    background: rgba(229, 9, 20, 0.1);
+    color: var(--color-primary);
+    letter-spacing: 0.3px;
+}
+
+.badge-pct {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 6px;
+}
+
+.badge-pct.positive {
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
+}
+
+.badge-pct.negative {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+
+.badge-pct.neutral {
+    background: rgba(160, 160, 160, 0.12);
+    color: var(--color-text-muted);
+}
+
+/* Pagination */
+.optimizer-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0.5rem 0.5rem;
+    margin-top: 1rem;
+    border-top: 1px solid var(--color-border);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.pagination-info {
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pagination-btn {
+    padding: 0.45rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.page-num {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.page-num:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.page-num.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(229, 9, 20, 0.3);
+}
 ```
 
 ## File: src\pages\Tools\BiddingOptimizer.jsx
 ```javascript
 import React, { useState, useEffect } from 'react';
-import { Upload, ChevronDown, Download, AlertCircle, Settings, X, FileSpreadsheet } from 'lucide-react';
+import { Upload, ChevronDown, Download, AlertCircle, Settings, X, FileSpreadsheet, TrendingUp, TrendingDown } from 'lucide-react';
 import './BiddingOptimizer.css';
 import * as XLSX from 'xlsx';
 
@@ -5881,56 +6395,52 @@ const BiddingOptimizer = () => {
 
             {/* FULL WIDTH RESULTS */}
             {file && (
-                <div className="w-full" style={{ paddingLeft: '10%', paddingRight: '10%' }}>
-                    <div className="pop-card mt-8">
-                        <div className="pop-card-header">
-                            <div className="pop-step-number">3</div>
-                            <h3 className="text-base tracking-wide">Optimization Results</h3>
+                <div style={{ padding: '0 5%', marginTop: '2rem' }}>
+                    <div className="optimizer-results-card">
+                        <div className="optimizer-results-header">
+                            <div className="step-number mini">3</div>
+                            <h3 className="tracking-wide">Optimization Results</h3>
                         </div>
 
-                        <div className="pop-card-body p-4 bg-white dark:bg-[var(--color-bg-dark)]">
-                            <div className="mb-4">
-                                <div className="flex gap-4 items-center flex-wrap">
-                                    <div className="flex-1 min-w-[200px]">
-                                        <input
-                                            id="search-results"
-                                            placeholder="Type to search globally across all fields..."
-                                            className="pop-input w-full text-sm"
-                                            type="text"
-                                            value={globalSearch}
-                                            onChange={(e) => setGlobalSearch(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="relative inline-block">
-                                        <button onClick={handleExport} disabled={isParsing || processedData.length === 0} className="pop-export-btn inline-flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border border-white/10 hover:shadow-lg hover:shadow-black/20 focus:ring-[#5171ff] text-sm bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg whitespace-nowrap">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-download w-4 h-4 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
-                                            Export Optimized Bulksheet ({processedData.length})
-                                        </button>
-                                    </div>
-                                    <button onClick={clearFile} disabled={isParsing} className="pop-clear-btn inline-flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border border-gray-300 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg whitespace-nowrap dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:border-gray-600">
-                                        <X size={16} className="mr-2" /> Clear All
-                                    </button>
+                        <div className="optimizer-results-body">
+                            <div className="optimizer-toolbar">
+                                <div className="optimizer-search-wrap">
+                                    <input
+                                        id="search-results"
+                                        placeholder="Type to search globally across all fields..."
+                                        className="optimizer-search-input"
+                                        type="text"
+                                        value={globalSearch}
+                                        onChange={(e) => setGlobalSearch(e.target.value)}
+                                    />
                                 </div>
+                                <button onClick={handleExport} disabled={isParsing || processedData.length === 0} className="export-btn">
+                                    <Download size={18} />
+                                    Export Optimized Bulksheet ({processedData.length})
+                                </button>
+                                <button onClick={clearFile} disabled={isParsing} className="clear-btn">
+                                    <X size={16} /> Clear All
+                                </button>
                             </div>
 
-                            <div className="pop-table-container relative overflow-x-auto shadow-md sm:rounded-lg border border-gray-200 dark:border-gray-700" style={{ maxHeight: '600px' }}>
+                            <div className="optimizer-table-container">
                                 {isParsing ? (
-                                    <div className="parsing-state p-8 text-center text-gray-500 dark:text-gray-400">
+                                    <div className="parsing-state">
                                         <div className="spinner mx-auto mb-4"></div>
                                         <p>Analyzing targeting performance and calculating optimal bids...</p>
                                     </div>
                                 ) : (
-                                    <table className="pop-table w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0 z-10 shadow-sm leading-normal">
+                                    <table className="optimizer-table">
+                                        <thead>
                                             <tr>
                                                 {columns.map(col => (
-                                                    <th key={col.key} className="pop-th relative group px-4 py-3 bg-[#f8fafc] text-gray-700 font-semibold text-left tracking-wide border-b border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap shadow-sm select-none">
-                                                        <div className="flex items-center justify-between space-x-2 cursor-pointer" onClick={() => handleSort(col.key)}>
+                                                    <th key={col.key} className="optimizer-th">
+                                                        <div className="th-content" onClick={() => handleSort(col.key)}>
                                                             <span>{col.label}</span>
                                                             {/* Sort Icons */}
-                                                            <div className="flex flex-col ml-1 text-gray-300 dark:text-gray-600 opacity-50 group-hover:opacity-100 transition-opacity">
-                                                                <svg width="12" height="12" className={`-mb-1 ${sortConfig.key === col.key && sortConfig.direction === 'asc' ? 'text-[#5171ff] dark:text-[#5171ff]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
-                                                                <svg width="12" height="12" className={`${sortConfig.key === col.key && sortConfig.direction === 'desc' ? 'text-[#5171ff] dark:text-[#5171ff]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                            <div className="sort-icons">
+                                                                <svg width="12" height="12" className={`sort-icon asc ${sortConfig.key === col.key && sortConfig.direction === 'asc' ? 'active' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                                                                <svg width="12" height="12" className={`sort-icon desc ${sortConfig.key === col.key && sortConfig.direction === 'desc' ? 'active' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                                                             </div>
                                                         </div>
 
@@ -5938,7 +6448,7 @@ const BiddingOptimizer = () => {
                                                         {['campaign', 'adGroup', 'ruleCategory', 'keyword'].includes(col.key) && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); toggleFilterDropdown(col.key); }}
-                                                                className={`absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 ${filterConfigs[col.key] ? 'text-white bg-[#5171ff] shadow-md hover:bg-blue-600 ring-2 ring-white ring-offset-1' : 'text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50 border border-gray-200 shadow-sm'}`}
+                                                                className={`filter-toggle-btn ${filterConfigs[col.key] ? 'is-active' : ''}`}
                                                             >
                                                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
                                                             </button>
@@ -5946,40 +6456,40 @@ const BiddingOptimizer = () => {
 
                                                         {/* Filter Dropdown */}
                                                         {activeFilterDropdown === col.key && (
-                                                            <div className="absolute top-full left-0 mt-1 min-w-[200px] w-max bg-white border border-gray-200 rounded shadow-lg z-50 dark:bg-gray-800 dark:border-gray-600" onClick={e => e.stopPropagation()}>
-                                                                <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-                                                                    <div className="flex items-center space-x-2">
+                                                            <div className="filter-dropdown-menu" onClick={e => e.stopPropagation()}>
+                                                                <div className="filter-dropdown-header">
+                                                                    <div className="filter-search-row">
                                                                         <input
                                                                             type="text"
-                                                                            className="w-full px-2 py-1 text-xs border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                                            className="filter-search-input"
                                                                             placeholder="Search..."
                                                                             value={filterSearchQuery}
                                                                             onChange={e => setFilterSearchQuery(e.target.value)}
                                                                         />
                                                                         <button
-                                                                            className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded border dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:text-gray-200 whitespace-nowrap"
+                                                                            className="filter-all-btn"
                                                                             onClick={() => selectAllFilter(col.key, getUniqueValues(col.key).filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase())))}
                                                                         >All</button>
                                                                     </div>
                                                                 </div>
-                                                                <div className="max-h-40 overflow-y-auto p-1 space-y-1">
+                                                                <div className="filter-dropdown-list">
                                                                     {getUniqueValues(col.key)
                                                                         .filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase()))
                                                                         .map((val, idx) => (
-                                                                            <label key={idx} className="flex items-center space-x-2 px-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer rounded">
+                                                                            <label key={idx} className="filter-option">
                                                                                 <input
                                                                                     type="checkbox"
-                                                                                    className="w-3 h-3 text-blue-600 rounded"
+                                                                                    className="filter-checkbox"
                                                                                     checked={tempSelections.includes(val)}
                                                                                     onChange={() => toggleFilterSelection(val)}
                                                                                 />
-                                                                                <span className="text-xs truncate" title={val}>{val}</span>
+                                                                                <span className="filter-option-text" title={val}>{val}</span>
                                                                             </label>
                                                                         ))}
                                                                 </div>
-                                                                <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex space-x-2">
-                                                                    <button className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" onClick={() => applyFilter(col.key)}>Apply</button>
-                                                                    <button className="flex-1 px-2 py-1 text-xs border rounded hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" onClick={() => clearFilter(col.key)}>Clear</button>
+                                                                <div className="filter-dropdown-footer">
+                                                                    <button className="filter-action-btn apply" onClick={() => applyFilter(col.key)}>Apply</button>
+                                                                    <button className="filter-action-btn clear" onClick={() => clearFilter(col.key)}>Clear</button>
                                                                 </div>
                                                             </div>
                                                         )}
@@ -5989,24 +6499,26 @@ const BiddingOptimizer = () => {
                                         </thead>
                                         <tbody>
                                             {paginatedData.map((row) => (
-                                                <tr key={row.id} className="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
+                                                <tr key={row.id} className="optimizer-tr">
                                                     {columns.map(col => {
                                                         const val = row[col.key];
 
                                                         // Special formatting overrides
                                                         if (col.key === 'ruleCategory') {
-                                                            return <td key={col.key} className="pop-td"><span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded dark:bg-blue-200 dark:text-blue-900">{val}</span></td>;
+                                                            return <td key={col.key} className="optimizer-td"><span className="strategy-badge">{val}</span></td>;
                                                         }
                                                         if (col.key === 'reason') {
-                                                            return <td key={col.key} className="pop-td text-xs text-gray-500 italic dark:text-gray-400">{val}</td>;
+                                                            return <td key={col.key} className="optimizer-td reason-cell whitespace-nowrap">{val}</td>;
                                                         }
                                                         if (col.key === 'suggestedBid') {
-                                                            return <td key={col.key} className="pop-td font-bold text-green-600 dark:text-green-400">${val.toFixed(2)}</td>;
+                                                            return <td key={col.key} className="optimizer-td suggested-bid-cell">${val.toFixed(2)}</td>;
                                                         }
                                                         if (col.key === 'changePct') {
                                                             return (
-                                                                <td key={col.key} className="pop-td">
-                                                                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${val > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : val < 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                                                                <td key={col.key} className="optimizer-td">
+                                                                    <span className={`badge-pct ${val > 0 ? 'positive' : val < 0 ? 'negative' : 'neutral'}`}>
+                                                                        {val > 0 && <TrendingUp size={13} />}
+                                                                        {val < 0 && <TrendingDown size={13} />}
                                                                         {val > 0 ? '+' : ''}{val.toFixed(1)}%
                                                                     </span>
                                                                 </td>
@@ -6029,8 +6541,8 @@ const BiddingOptimizer = () => {
                                                         }
 
                                                         return (
-                                                            <td key={col.key} className="pop-td font-medium text-gray-900 dark:text-gray-200" title={val}>
-                                                                <div className={`${['keyword', 'campaign', 'adGroup'].includes(col.key) ? 'truncate max-w-[200px]' : ''}`}>
+                                                            <td key={col.key} className="optimizer-td" title={val}>
+                                                                <div className={`${['keyword', 'campaign', 'adGroup'].includes(col.key) ? 'truncate-md' : ''}`}>
                                                                     {col.prefix}{displayVal}{col.suffix}
                                                                 </div>
                                                             </td>
@@ -6040,7 +6552,7 @@ const BiddingOptimizer = () => {
                                             ))}
                                             {paginatedData.length === 0 && !isParsing && (
                                                 <tr>
-                                                    <td colSpan={columns.length} className="text-center py-8 text-gray-500">No optimized rows found matching priorities/filters.</td>
+                                                    <td colSpan={columns.length} className="optimizer-td" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>No optimized rows found matching priorities/filters.</td>
                                                 </tr>
                                             )}
                                         </tbody>
@@ -6050,21 +6562,20 @@ const BiddingOptimizer = () => {
 
                             {/* Pagination Controls */}
                             {!isParsing && processedData.length > 0 && (
-                                <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 border-t pt-5 pb-2 px-2 dark:border-gray-700">
-                                    <div className="flex items-center gap-2 font-medium">
+                                <div className="optimizer-pagination">
+                                    <div className="pagination-info">
                                         Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, processedData.length)} of {processedData.length} entries
                                     </div>
-                                    <div className="flex items-center space-x-2">
+                                    <div className="pagination-controls">
                                         <button
                                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                             disabled={currentPage === 1}
-                                            className="px-4 py-2 font-medium text-sm rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:shadow disabled:hover:shadow-sm dark:bg-[var(--color-bg-dark)] dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                                            className="pagination-btn"
                                         >
                                             Previous
                                         </button>
-                                        <div className="flex space-x-1.5">
+                                        <div className="page-numbers">
                                             {[...Array(Math.min(5, totalPages))].map((_, idx) => {
-                                                // Simple windowing logic
                                                 let p = currentPage - 2 + idx;
                                                 if (currentPage <= 3) p = idx + 1;
                                                 else if (currentPage >= totalPages - 2) p = totalPages - 4 + idx;
@@ -6074,7 +6585,7 @@ const BiddingOptimizer = () => {
                                                         <button
                                                             key={p}
                                                             onClick={() => setCurrentPage(p)}
-                                                            className={`w-9 h-9 flex items-center justify-center font-semibold text-sm rounded-lg border shadow-sm transition-all ${currentPage === p ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow dark:bg-[var(--color-bg-dark)] dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800'}`}
+                                                            className={`page-num ${currentPage === p ? 'active' : ''}`}
                                                         >
                                                             {p}
                                                         </button>
@@ -6086,7 +6597,7 @@ const BiddingOptimizer = () => {
                                         <button
                                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                             disabled={currentPage === totalPages}
-                                            className="px-4 py-2 font-medium text-sm rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:shadow disabled:hover:shadow-sm dark:bg-[var(--color-bg-dark)] dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                                            className="pagination-btn"
                                         >
                                             Next
                                         </button>
