@@ -15,9 +15,6 @@ const BiddingOptimizer = () => {
     const [minAcos, setMinAcos] = useState('');
     const [maxAcos, setMaxAcos] = useState('');
 
-    // Placement Multiplier (% increase active in Campaign Manager)
-    const [placementMultiplier, setPlacementMultiplier] = useState(0);
-
     // File State
     const [file, setFile] = useState(null);
     const [isParsing, setIsParsing] = useState(false);
@@ -59,7 +56,7 @@ const BiddingOptimizer = () => {
             parseExcelInfo(file);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [file, adType, strategy, targetAcos, minBid, maxBid, placementMultiplier]);
+    }, [file, adType, strategy, targetAcos, minBid, maxBid]);
 
     const parseExcelInfo = (uploadedFile) => {
         setIsParsing(true);
@@ -270,13 +267,6 @@ const BiddingOptimizer = () => {
                             if (suggestedBid > maxIncreaseBid) {
                                 suggestedBid = maxIncreaseBid;
                                 reasons.push(`Capped at +20% max increase`);
-                            }
-
-                            // 4. Placement Awareness: lower bid to account for active multipliers
-                            if (placementMultiplier > 0) {
-                                const adjustedBid = suggestedBid / (1 + placementMultiplier / 100);
-                                suggestedBid = adjustedBid;
-                                reasons.push(`Adjusted for ${placementMultiplier}% placement multiplier`);
                             }
 
                             if (reasons.length > 0) {
@@ -721,22 +711,6 @@ const BiddingOptimizer = () => {
                                         step="0.10"
                                         value={maxBid}
                                         onChange={(e) => setMaxBid(parseFloat(e.target.value))}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label>Placement Multiplier</label>
-                                <div className="input-with-symbol">
-                                    <span className="symbol">%</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="900"
-                                        step="10"
-                                        value={placementMultiplier}
-                                        onChange={(e) => setPlacementMultiplier(parseFloat(e.target.value) || 0)}
-                                        placeholder="0"
                                     />
                                 </div>
                             </div>
