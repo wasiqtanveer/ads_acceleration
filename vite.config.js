@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/ads_acceleration/',
+  base: './',  // Change this from '/ads_acceleration/' to './'
   plugins: [react()],
-
 })

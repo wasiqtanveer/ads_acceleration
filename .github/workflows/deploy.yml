@@ -1,0 +1,28 @@
+name: Deploy Website
+
+on:
+  push:
+    branches:
+      - main  # Change this to 'master' if your branch name is different
+
+jobs:
+  web-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Install and Build
+      run: |
+        npm install
+        npm run build
+
+    - name: Sync Files
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./dist/  # Important: Use ./build/ if you are not using Vite
+        server-dir: ./public_html/
