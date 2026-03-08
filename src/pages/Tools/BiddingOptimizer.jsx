@@ -14,6 +14,7 @@ const BiddingOptimizer = () => {
     // ACOS Range Filter State
     const [minAcos, setMinAcos] = useState('');
     const [maxAcos, setMaxAcos] = useState('');
+    const [acosOutside, setAcosOutside] = useState(false);
 
     // File State
     const [file, setFile] = useState(null);
@@ -525,17 +526,27 @@ const BiddingOptimizer = () => {
         );
     }
 
-    // 1b. ACOS Range Filter — open-ended support
+    // 1b. ACOS Range Filter — inner / outer range support
     const parsedMinAcos = parseFloat(minAcos);
     const parsedMaxAcos = parseFloat(maxAcos);
     const hasMin = !isNaN(parsedMinAcos);
     const hasMax = !isNaN(parsedMaxAcos);
-    if (hasMin || hasMax) {
-        const effectiveMin = hasMin ? parsedMinAcos : 0;
-        const effectiveMax = hasMax ? parsedMaxAcos : Infinity;
-        processedData = processedData.filter(row =>
-            row.acos < effectiveMin || row.acos > effectiveMax
-        );
+    if (hasMin && hasMax) {
+        if (acosOutside) {
+            // Outer range: show outliers (< min OR > max)
+            processedData = processedData.filter(row =>
+                row.acos < parsedMinAcos || row.acos > parsedMaxAcos
+            );
+        } else {
+            // Inner range (default): show data within the goal band
+            processedData = processedData.filter(row =>
+                row.acos >= parsedMinAcos && row.acos <= parsedMaxAcos
+            );
+        }
+    } else if (hasMin) {
+        processedData = processedData.filter(row => row.acos >= parsedMinAcos);
+    } else if (hasMax) {
+        processedData = processedData.filter(row => row.acos <= parsedMaxAcos);
     }
 
     // 2. Column Filters
@@ -572,11 +583,19 @@ const BiddingOptimizer = () => {
             return sum + r.spend * (r.suggestedBid / r.originalBid);
         }, 0);
         const totalSavings = totalCurrentSpend - totalProjectedSpend;
+        const totalSales = reduced.reduce((sum, r) => sum + r.sales, 0);
+        const totalClicks = reduced.reduce((sum, r) => sum + r.clicks, 0);
+        const avgAcos = totalSales > 0 ? (totalCurrentSpend / totalSales) * 100 : 0;
+        const avgCpc = totalClicks > 0 ? totalCurrentSpend / totalClicks : 0;
         return {
             count: reduced.length,
             totalCurrentSpend,
             totalProjectedSpend,
             totalSavings,
+            totalSales,
+            totalClicks,
+            avgAcos,
+            avgCpc,
         };
     })();
 
@@ -728,6 +747,7 @@ const BiddingOptimizer = () => {
                                             const val = e.target.value;
                                             if (maxAcos !== '' && val !== '' && parseFloat(val) > parseFloat(maxAcos)) return;
                                             setMinAcos(val);
+                                            if (val === '') setAcosOutside(false);
                                         }}
                                         placeholder="e.g. 20"
                                     />
@@ -747,17 +767,37 @@ const BiddingOptimizer = () => {
                                             const val = e.target.value;
                                             if (minAcos !== '' && val !== '' && parseFloat(val) < parseFloat(minAcos)) return;
                                             setMaxAcos(val);
+                                            if (val === '') setAcosOutside(false);
                                         }}
                                         placeholder="e.g. 30"
                                     />
                                 </div>
                             </div>
 
-                            {minAcos !== '' && maxAcos !== '' && (
+                            {(minAcos !== '' || maxAcos !== '') && (
                                 <div className="form-group group-full-width">
-                                    <div className="acos-filter-hint">
-                                        <AlertCircle size={14} />
-                                        <span>Showing results with ACOS below {minAcos}% or above {maxAcos}% (excluding {minAcos}%–{maxAcos}% range)</span>
+                                    <div className="acos-range-controls">
+                                        <button
+                                            className={`acos-range-toggle${acosOutside ? ' active' : ''}`}
+                                            disabled={!(minAcos !== '' && maxAcos !== '')}
+                                            onClick={() => setAcosOutside(prev => !prev)}
+                                            title={minAcos === '' || maxAcos === '' ? 'Enter both Min and Max ACOS to enable' : ''}
+                                        >
+                                            {acosOutside ? 'Show Inner Range' : 'Show Outside Range'}
+                                        </button>
+                                        <div className="acos-filter-hint">
+                                            <AlertCircle size={14} />
+                                            <span>
+                                                {minAcos !== '' && maxAcos !== ''
+                                                    ? acosOutside
+                                                        ? `Showing ACOS < ${minAcos}% or > ${maxAcos}% (outliers)`
+                                                        : `Showing ACOS ${minAcos}%\u2013${maxAcos}% (inner range)`
+                                                    : minAcos !== ''
+                                                        ? `Showing ACOS \u2265 ${minAcos}%`
+                                                        : `Showing ACOS \u2264 ${maxAcos}%`
+                                                }
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -821,7 +861,15 @@ const BiddingOptimizer = () => {
                             </div>
                             <h2>Estimated Spend Impact</h2>
                             <p className="text-muted">
-                                {maxAcos !== '' ? `Keywords with ACOS > ${maxAcos}%` : minAcos !== '' ? `Keywords with ACOS < ${minAcos}%` : 'All keywords with bid reductions'}
+                                {minAcos !== '' && maxAcos !== ''
+                                    ? acosOutside
+                                        ? `ACOS < ${minAcos}% or > ${maxAcos}% (outside range)`
+                                        : `ACOS ${minAcos}%\u2013${maxAcos}% (inner range)`
+                                    : maxAcos !== ''
+                                        ? `ACOS \u2264 ${maxAcos}%`
+                                        : minAcos !== ''
+                                            ? `ACOS \u2265 ${minAcos}%`
+                                            : 'All keywords with bid reductions'}
                                 {' — '}{impactStats.count} keyword{impactStats.count !== 1 ? 's' : ''} affected
                             </p>
                         </div>
@@ -837,6 +885,31 @@ const BiddingOptimizer = () => {
                             <div className="impact-stat-card savings">
                                 <span className="impact-stat-label">Total Estimated Savings</span>
                                 <span className="impact-stat-value savings-value">${impactStats.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                        <div className="impact-metrics-section">
+                            <p className="impact-metrics-title">Affected Keywords — Current Performance</p>
+                            <div className="impact-metrics-grid">
+                                <div className="impact-stat-card">
+                                    <span className="impact-stat-label">Spend</span>
+                                    <span className="impact-stat-value impact-metric-value">${impactStats.totalCurrentSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                                <div className="impact-stat-card">
+                                    <span className="impact-stat-label">Sales</span>
+                                    <span className="impact-stat-value impact-metric-value">${impactStats.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                                <div className="impact-stat-card">
+                                    <span className="impact-stat-label">ACOS</span>
+                                    <span className="impact-stat-value impact-metric-value">{impactStats.avgAcos > 0 ? `${impactStats.avgAcos.toFixed(1)}%` : '—'}</span>
+                                </div>
+                                <div className="impact-stat-card">
+                                    <span className="impact-stat-label">CPC</span>
+                                    <span className="impact-stat-value impact-metric-value">{impactStats.avgCpc > 0 ? `$${impactStats.avgCpc.toFixed(2)}` : '—'}</span>
+                                </div>
+                                <div className="impact-stat-card">
+                                    <span className="impact-stat-label">Clicks</span>
+                                    <span className="impact-stat-value impact-metric-value">{impactStats.totalClicks.toLocaleString()}</span>
+                                </div>
                             </div>
                         </div>
                         <p className="impact-disclaimer">
