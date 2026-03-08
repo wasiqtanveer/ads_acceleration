@@ -247,14 +247,9 @@ const BiddingOptimizer = () => {
                         const cr = clicks > 0 ? (orders / clicks) : 0;
                         const avgOrderValue = orders > 0 ? sales / orders : 0;
 
-                        if (strategy === 'inch-up-acos' && clicks <= 3) {
-                            if (clicks === 0) {
-                                reason = `Inch Up: 0 clicks - Data collection phase (flat +$0.10)`;
-                                suggestedBid = originalBid + 0.10;
-                            } else {
-                                reason = `Inch Up: ${clicks} clicks - Data collection phase (+10%)`;
-                                suggestedBid = originalBid * 1.10;
-                            }
+                        if (strategy === 'inch-up-acos' && clicks <= 5) {
+                            reason = `Inch Up: ${clicks} click${clicks !== 1 ? 's' : ''} - Data collection phase (flat +$0.10)`;
+                            suggestedBid = originalBid + 0.10;
                             ruleCategory = 'Inch Up';
                             modified = true;
                         } else {
