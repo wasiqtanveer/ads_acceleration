@@ -338,6 +338,25 @@ body:not(.light-mode) .acos-filter-hint {
     border-color: rgba(255, 204, 0, 0.15);
 }
 
+.acos-invalid-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: rgba(229, 9, 20, 0.1);
+    border: 1px solid rgba(229, 9, 20, 0.35);
+    border-radius: 8px;
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: #e50914;
+}
+
+body:not(.light-mode) .acos-invalid-banner {
+    background: rgba(229, 9, 20, 0.12);
+    border-color: rgba(229, 9, 20, 0.4);
+    color: #ff4d57;
+}
+
 /* Radio Pill Selectors */
 .radio-pill-group {
     display: grid;
@@ -477,6 +496,23 @@ body:not(.light-mode) .input-with-symbol input:focus {
     transition: all 0.3s ease;
     text-align: center;
     overflow: hidden;
+}
+
+.upload-zone-blocked {
+    border-color: rgba(229, 9, 20, 0.5);
+    background: rgba(229, 9, 20, 0.03);
+    cursor: not-allowed;
+}
+
+.upload-zone-blocked:hover {
+    border-color: rgba(229, 9, 20, 0.7);
+    background: rgba(229, 9, 20, 0.05);
+}
+
+.upload-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: all !important;
 }
 
 .upload-zone:hover {
@@ -1012,6 +1048,7 @@ body:not(.light-mode) .export-btn:hover:not(:disabled) {
 /* Table Wrapper */
 .optimizer-table-container {
     max-height: 650px;
+    min-height: 380px;
     overflow: auto;
     border: 1px solid var(--color-border);
     border-radius: 12px;
@@ -1046,6 +1083,7 @@ body:not(.light-mode) .export-btn:hover:not(:disabled) {
     white-space: nowrap;
     position: relative;
     user-select: none;
+    overflow: visible;
 }
 
 .optimizer-th:first-child {
@@ -1115,17 +1153,24 @@ body:not(.light-mode) .filter-toggle-btn.is-active {
 
 /* Filter Dropdown */
 .filter-dropdown-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
     min-width: 220px;
     max-width: 300px;
     background: var(--color-bg-card);
     border: 1px solid var(--color-border);
     border-radius: 10px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
-    z-index: 50;
     overflow: hidden;
+}
+
+/* Portal variant — position:fixed injected via inline style */
+.filter-dropdown-portal {
+    z-index: 9999;
+}
+
+/* Filter button wrapper */
+.filter-btn-wrapper {
+    position: relative;
+    display: inline-flex;
 }
 
 .filter-dropdown-header {
@@ -1179,7 +1224,8 @@ body:not(.light-mode) .filter-toggle-btn.is-active {
 
 .filter-option {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
     gap: 0.5rem;
     padding: 0.35rem 0.65rem;
     cursor: pointer;
@@ -1194,6 +1240,16 @@ body:not(.light-mode) .filter-toggle-btn.is-active {
 
 body:not(.light-mode) .filter-option:hover {
     background: rgba(255, 204, 0, 0.06);
+}
+
+.filter-item-hint {
+    display: block;
+    width: 100%;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+    padding-left: 1.35rem;
+    opacity: 0.75;
 }
 
 .filter-checkbox {
@@ -1291,7 +1347,14 @@ body:not(.light-mode) .optimizer-tr:hover {
 .reason-cell {
     font-size: 0.75rem;
     color: var(--color-text-muted);
+}
+
+.reason-truncate {
+    max-width: 300px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
 }
 
 /* Badges */

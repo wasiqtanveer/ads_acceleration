@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ChevronDown, Download, AlertCircle, Settings, X, FileSpreadsheet, TrendingUp, TrendingDown, Eye, DollarSign } from 'lucide-react';
 import './BiddingOptimizer.css';
 import * as XLSX from 'xlsx';
@@ -14,6 +14,8 @@ const BiddingOptimizer = () => {
     // ACOS Range Filter State
     const [minAcos, setMinAcos] = useState('');
     const [maxAcos, setMaxAcos] = useState('');
+    const [debouncedMinAcos, setDebouncedMinAcos] = useState('');
+    const [debouncedMaxAcos, setDebouncedMaxAcos] = useState('');
     const [acosOutside, setAcosOutside] = useState(false);
 
     // File State
@@ -25,6 +27,7 @@ const BiddingOptimizer = () => {
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [filterConfigs, setFilterConfigs] = useState({}); // { filterKey: [checkedValues] }
     const [activeFilterDropdown, setActiveFilterDropdown] = useState(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
     const [filterSearchQuery, setFilterSearchQuery] = useState('');
     const [tempSelections, setTempSelections] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -35,12 +38,37 @@ const BiddingOptimizer = () => {
     const [error, setError] = useState('');
     const [showImpactModal, setShowImpactModal] = useState(false);
 
+    // Refs
+    const fileInputRef = useRef(null);
+    const parseIdRef = useRef(0);
+    const parseTimeoutRef = useRef(null);
+
+    // Debounce ACOS filter inputs (300ms)
+    useEffect(() => {
+        const id = setTimeout(() => setDebouncedMinAcos(minAcos), 300);
+        return () => clearTimeout(id);
+    }, [minAcos]);
+    useEffect(() => {
+        const id = setTimeout(() => setDebouncedMaxAcos(maxAcos), 300);
+        return () => clearTimeout(id);
+    }, [maxAcos]);
+
+    const acosRangeInvalid =
+        minAcos !== '' && maxAcos !== '' &&
+        parseFloat(minAcos) > parseFloat(maxAcos);
+
     const handleFileUpload = (e) => {
         const uploadedFile = e.target.files[0];
         if (!uploadedFile) return;
 
-        if (!uploadedFile.name.endsWith('.xlsx')) {
-            setError('Please upload a valid Excel (.xlsx) file.');
+        if (acosRangeInvalid) {
+            setError('Min ACOS cannot be greater than Max ACOS. Please fix the range before uploading.');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
+        if (!uploadedFile.name.endsWith('.xlsx') && !uploadedFile.name.endsWith('.xls')) {
+            setError('Please upload a valid Excel (.xlsx or .xls) file.');
             return;
         }
 
@@ -51,19 +79,24 @@ const BiddingOptimizer = () => {
     // Maintain the modified workbook data in memory for exporting later
     const [workbookData, setWorkbookData] = useState(null);
 
-    // Re-parse when file or settings change
+    // Re-parse when file or settings change (debounced 350ms to prevent rapid re-parses while typing)
     useEffect(() => {
-        if (file) {
+        if (!file) return;
+        if (parseTimeoutRef.current) clearTimeout(parseTimeoutRef.current);
+        parseTimeoutRef.current = setTimeout(() => {
             parseExcelInfo(file);
-        }
+        }, 350);
+        return () => clearTimeout(parseTimeoutRef.current);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [file, adType, strategy, targetAcos, minBid, maxBid]);
 
     const parseExcelInfo = (uploadedFile) => {
         setIsParsing(true);
+        const currentParseId = ++parseIdRef.current;
 
         const reader = new FileReader();
         reader.onload = (e) => {
+            if (currentParseId !== parseIdRef.current) return; // stale parse — a newer one is in flight
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -234,10 +267,16 @@ const BiddingOptimizer = () => {
                                 suggestedBid = maxAllowedCpc;
                                 reason = `ACoS Bidding: Current ACoS ${currentAcos.toFixed(1)}% → Target ACoS ${targetAcos}% | Max CPC $${maxAllowedCpc.toFixed(2)}`;
                                 ruleCategory = 'ACoS Bidding';
-                            } else {
+                            } else if (strategy === 'inch-up-acos') {
+                                // Inch Up fallback: gently raise bid to gather data
                                 suggestedBid = originalBid * 1.05;
                                 reason = `ACoS Bidding: No sales data → slight increase toward Target ACoS ${targetAcos}%`;
                                 ruleCategory = 'ACoS Bidding';
+                            } else {
+                                // Strict ACoS: no data = hold bid, never guess
+                                suggestedBid = originalBid;
+                                reason = `Strict ACoS: Insufficient data — bid held at current`;
+                                ruleCategory = 'Data Pending';
                             }
                             modified = true;
                         }
@@ -297,9 +336,9 @@ const BiddingOptimizer = () => {
                             const acos = sales > 0 ? (spend / sales) * 100 : 0;
                             const roas = spend > 0 ? sales / spend : 0;
                             const cpc = clicks > 0 ? spend / clicks : 0;
-                            const rpc = clicks > 0 ? sales / clicks : 0;
+                            const displayRpc = clicks > 0 ? sales / clicks : 0;
                             const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-                            const cr = clicks > 0 ? (orders / clicks) * 100 : 0;
+                            const displayCr = clicks > 0 ? (orders / clicks) * 100 : 0;
                             const changePct = originalBid > 0 ? ((suggestedBid - originalBid) / originalBid) * 100 : 0;
 
                             processedResults.push({
@@ -319,9 +358,9 @@ const BiddingOptimizer = () => {
                                 acos,
                                 roas,
                                 cpc,
-                                rpc,
+                                rpc: displayRpc,
                                 ctr,
-                                cr,
+                                cr: displayCr,
                                 reason,
                                 ruleCategory
                             });
@@ -369,6 +408,13 @@ const BiddingOptimizer = () => {
         setResults([]);
         setError('');
         setWorkbookData(null);
+        setCurrentPage(1);
+        setGlobalSearch('');
+        setFilterConfigs({});
+        setMinAcos('');
+        setMaxAcos('');
+        setAcosOutside(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleExport = () => {
@@ -461,14 +507,42 @@ const BiddingOptimizer = () => {
         setSortConfig({ key, direction });
     };
 
-    const toggleFilterDropdown = (key) => {
+    const toggleFilterDropdown = (key, e) => {
         if (activeFilterDropdown === key) {
             setActiveFilterDropdown(null);
         } else {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setDropdownPos({
+                top: rect.bottom + 4,
+                left: Math.min(rect.left, window.innerWidth - 320),
+            });
             setActiveFilterDropdown(key);
             setTempSelections(filterConfigs[key] || []);
             setFilterSearchQuery('');
         }
+    };
+
+    // Close filter dropdown on scroll or outside click
+    useEffect(() => {
+        if (!activeFilterDropdown) return;
+        const close = () => setActiveFilterDropdown(null);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('mousedown', close);
+        return () => {
+            window.removeEventListener('scroll', close, true);
+            window.removeEventListener('mousedown', close);
+        };
+    }, [activeFilterDropdown]);
+
+    // Per-item filter dropdown tooltips (keyed by column → value)
+    const filterItemHints = {
+        ruleCategory: {
+            'Inch Up': '≤3 clicks: bid raised to gather data.',
+            'ACoS Bidding': 'Bid set via Target ACoS formula (MaxCPC = RPC × Target ACoS).',
+            'ACoS Guardrail': 'ACoS > 50%: forced ≥20% decrease.',
+            'Increase Frozen': 'ACoS exceeds target: any raise is blocked.',
+            'Data Pending': 'Strict ACoS mode with no sales data: bid held.',
+        },
     };
 
     const toggleFilterSelection = (value) => {
@@ -526,9 +600,9 @@ const BiddingOptimizer = () => {
         );
     }
 
-    // 1b. ACOS Range Filter — inner / outer range support
-    const parsedMinAcos = parseFloat(minAcos);
-    const parsedMaxAcos = parseFloat(maxAcos);
+    // 1b. ACOS Range Filter — inner / outer range support (uses debounced values)
+    const parsedMinAcos = parseFloat(debouncedMinAcos);
+    const parsedMaxAcos = parseFloat(debouncedMaxAcos);
     const hasMin = !isNaN(parsedMinAcos);
     const hasMax = !isNaN(parsedMaxAcos);
     if (hasMin && hasMax) {
@@ -745,9 +819,9 @@ const BiddingOptimizer = () => {
                                         value={minAcos}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            if (maxAcos !== '' && val !== '' && parseFloat(val) > parseFloat(maxAcos)) return;
                                             setMinAcos(val);
                                             if (val === '') setAcosOutside(false);
+                                            setCurrentPage(1);
                                         }}
                                         placeholder="e.g. 20"
                                     />
@@ -765,14 +839,23 @@ const BiddingOptimizer = () => {
                                         value={maxAcos}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            if (minAcos !== '' && val !== '' && parseFloat(val) < parseFloat(minAcos)) return;
                                             setMaxAcos(val);
                                             if (val === '') setAcosOutside(false);
+                                            setCurrentPage(1);
                                         }}
                                         placeholder="e.g. 30"
                                     />
                                 </div>
                             </div>
+
+                            {acosRangeInvalid && (
+                                <div className="form-group group-full-width">
+                                    <div className="acos-invalid-banner">
+                                        <AlertCircle size={15} />
+                                        <span>Min ACOS cannot be greater than Max ACOS.</span>
+                                    </div>
+                                </div>
+                            )}
 
                             {(minAcos !== '' || maxAcos !== '') && (
                                 <div className="form-group group-full-width">
@@ -780,7 +863,7 @@ const BiddingOptimizer = () => {
                                         <button
                                             className={`acos-range-toggle${acosOutside ? ' active' : ''}`}
                                             disabled={!(minAcos !== '' && maxAcos !== '')}
-                                            onClick={() => setAcosOutside(prev => !prev)}
+                                            onClick={() => { setAcosOutside(prev => !prev); setCurrentPage(1); }}
                                             title={minAcos === '' || maxAcos === '' ? 'Enter both Min and Max ACOS to enable' : ''}
                                         >
                                             {acosOutside ? 'Show Inner Range' : 'Show Outside Range'}
@@ -817,20 +900,26 @@ const BiddingOptimizer = () => {
                         <div className="step-content">
                             {/* Upload Zone */}
                             {!file && (
-                                <div className="upload-zone">
+                                <div className={`upload-zone${acosRangeInvalid ? ' upload-zone-blocked' : ''}`}>
                                     <input
+                                        ref={fileInputRef}
                                         type="file"
                                         accept=".xlsx, .xls"
                                         id="file-upload"
                                         onChange={handleFileUpload}
+                                        disabled={acosRangeInvalid}
                                     />
-                                    <label htmlFor="file-upload" className="upload-content">
+                                    <label
+                                        htmlFor={acosRangeInvalid ? undefined : 'file-upload'}
+                                        className={`upload-content${acosRangeInvalid ? ' upload-disabled' : ''}`}
+                                        onClick={acosRangeInvalid ? (e) => { e.preventDefault(); setError('Min ACOS cannot be greater than Max ACOS. Please fix the range before uploading.'); } : undefined}
+                                    >
                                         <div className="upload-icon">
                                             <Upload size={32} />
                                         </div>
                                         <h3>Upload Bulk Operations File</h3>
                                         <p>Drag and drop your Amazon Ads Excel file here, or click to browse.</p>
-                                        <span className="file-hint">Supported formats: .xlsx from Amazon Ads Console</span>
+                                        <span className="file-hint">Supported formats: .xlsx / .xls from Amazon Ads Console</span>
                                     </label>
                                 </div>
                             )}
@@ -913,7 +1002,10 @@ const BiddingOptimizer = () => {
                             </div>
                         </div>
                         <p className="impact-disclaimer">
-                            This change is estimated to reduce your spend by <strong>${impactStats.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> on high-ACOS keywords. Actual results depend on auction dynamics.
+                            {impactStats.totalSavings > 0
+                                ? <>This change is estimated to reduce your spend by <strong>${impactStats.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> across {impactStats.count} affected keyword{impactStats.count !== 1 ? 's' : ''}. Actual results depend on auction dynamics.</>
+                                : <>These bid changes affect <strong>{impactStats.count} keyword{impactStats.count !== 1 ? 's' : ''}</strong>. Actual impact depends on auction dynamics.</>
+                            }
                         </p>
                         <div className="impact-modal-actions">
                             <button className="impact-confirm-btn" onClick={() => { setShowImpactModal(false); handleExport(); }}>
@@ -927,6 +1019,60 @@ const BiddingOptimizer = () => {
                     </div>
                 </div>
             )}
+
+            {/* FILTER DROPDOWN PORTAL — rendered fixed outside overflow container */}
+            {activeFilterDropdown && (() => {
+                const activeCol = columns.find(c => c.key === activeFilterDropdown);
+                if (!activeCol) return null;
+                return (
+                    <div
+                        className="filter-dropdown-menu filter-dropdown-portal"
+                        style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+                        onMouseDown={e => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="filter-dropdown-header">
+                            <div className="filter-search-row">
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    className="filter-search-input"
+                                    placeholder="Search..."
+                                    value={filterSearchQuery}
+                                    onChange={e => setFilterSearchQuery(e.target.value)}
+                                />
+                                <button
+                                    className="filter-all-btn"
+                                    onClick={() => selectAllFilter(activeFilterDropdown, getUniqueValues(activeFilterDropdown).filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase())))}
+                                >All</button>
+                            </div>
+                        </div>
+                        <div className="filter-dropdown-list">
+                            {getUniqueValues(activeFilterDropdown)
+                                .filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase()))
+                                .map((val, idx) => {
+                                    const hint = filterItemHints[activeFilterDropdown]?.[val];
+                                    return (
+                                        <label key={idx} className="filter-option" title={hint || val}>
+                                            <input
+                                                type="checkbox"
+                                                className="filter-checkbox"
+                                                checked={tempSelections.includes(val)}
+                                                onChange={() => toggleFilterSelection(val)}
+                                            />
+                                            <span className="filter-option-text">{val}</span>
+                                            {hint && <span className="filter-item-hint">{hint}</span>}
+                                        </label>
+                                    );
+                                })}
+                        </div>
+                        <div className="filter-dropdown-footer">
+                            <button className="filter-action-btn apply" onClick={() => applyFilter(activeFilterDropdown)}>Apply</button>
+                            <button className="filter-action-btn clear" onClick={() => clearFilter(activeFilterDropdown)}>Clear</button>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* FULL WIDTH RESULTS */}
             {file && (
@@ -946,7 +1092,7 @@ const BiddingOptimizer = () => {
                                         className="optimizer-search-input"
                                         type="text"
                                         value={globalSearch}
-                                        onChange={(e) => setGlobalSearch(e.target.value)}
+                                        onChange={(e) => { setGlobalSearch(e.target.value); setCurrentPage(1); }}
                                     />
                                 </div>
                                 {impactStats.count > 0 && (
@@ -988,53 +1134,16 @@ const BiddingOptimizer = () => {
                                                             </div>
                                                         </div>
 
-                                                        {/* Filter Toggle Button */}
+                                                        {/* Filter Toggle Button + Tooltip */}
                                                         {['campaign', 'adGroup', 'ruleCategory', 'keyword'].includes(col.key) && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); toggleFilterDropdown(col.key); }}
-                                                                className={`filter-toggle-btn ${filterConfigs[col.key] ? 'is-active' : ''}`}
-                                                            >
-                                                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-                                                            </button>
-                                                        )}
-
-                                                        {/* Filter Dropdown */}
-                                                        {activeFilterDropdown === col.key && (
-                                                            <div className="filter-dropdown-menu" onClick={e => e.stopPropagation()}>
-                                                                <div className="filter-dropdown-header">
-                                                                    <div className="filter-search-row">
-                                                                        <input
-                                                                            type="text"
-                                                                            className="filter-search-input"
-                                                                            placeholder="Search..."
-                                                                            value={filterSearchQuery}
-                                                                            onChange={e => setFilterSearchQuery(e.target.value)}
-                                                                        />
-                                                                        <button
-                                                                            className="filter-all-btn"
-                                                                            onClick={() => selectAllFilter(col.key, getUniqueValues(col.key).filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase())))}
-                                                                        >All</button>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="filter-dropdown-list">
-                                                                    {getUniqueValues(col.key)
-                                                                        .filter(v => String(v).toLowerCase().includes(filterSearchQuery.toLowerCase()))
-                                                                        .map((val, idx) => (
-                                                                            <label key={idx} className="filter-option">
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    className="filter-checkbox"
-                                                                                    checked={tempSelections.includes(val)}
-                                                                                    onChange={() => toggleFilterSelection(val)}
-                                                                                />
-                                                                                <span className="filter-option-text" title={val}>{val}</span>
-                                                                            </label>
-                                                                        ))}
-                                                                </div>
-                                                                <div className="filter-dropdown-footer">
-                                                                    <button className="filter-action-btn apply" onClick={() => applyFilter(col.key)}>Apply</button>
-                                                                    <button className="filter-action-btn clear" onClick={() => clearFilter(col.key)}>Clear</button>
-                                                                </div>
+                                                            <div className="filter-btn-wrapper">
+                                                                <button
+                                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                                    onClick={(e) => { e.stopPropagation(); toggleFilterDropdown(col.key, e); }}
+                                                                    className={`filter-toggle-btn ${filterConfigs[col.key] ? 'is-active' : ''}`}
+                                                                >
+                                                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                                                                </button>
                                                             </div>
                                                         )}
                                                     </th>
@@ -1052,7 +1161,7 @@ const BiddingOptimizer = () => {
                                                             return <td key={col.key} className="optimizer-td"><span className="strategy-badge">{val}</span></td>;
                                                         }
                                                         if (col.key === 'reason') {
-                                                            return <td key={col.key} className="optimizer-td reason-cell whitespace-nowrap">{val}</td>;
+                                                            return <td key={col.key} className="optimizer-td reason-cell" title={val}><div className="reason-truncate">{val}</div></td>;
                                                         }
                                                         if (col.key === 'suggestedBid') {
                                                             return <td key={col.key} className="optimizer-td suggested-bid-cell">${val.toFixed(2)}</td>;
@@ -1122,7 +1231,7 @@ const BiddingOptimizer = () => {
                                             {[...Array(Math.min(5, totalPages))].map((_, idx) => {
                                                 let p = currentPage - 2 + idx;
                                                 if (currentPage <= 3) p = idx + 1;
-                                                else if (currentPage >= totalPages - 2) p = totalPages - 4 + idx;
+                                                else if (currentPage >= totalPages - 2) p = Math.max(1, totalPages - 4) + idx;
 
                                                 if (p > 0 && p <= totalPages) {
                                                     return (
