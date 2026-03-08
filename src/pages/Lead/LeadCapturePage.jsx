@@ -18,8 +18,7 @@ const TOOL_REGISTRY = {
         ),
         subText: (
             <p className="lead-sub-text">
-                Fix Broken Amazon PPC with Our In-House PPC Person<br />
-                Turn Ads into a Profit & Organic Ranking Engine in 120 Days
+
             </p>
         ),
         ctaLabel: 'Get Free Access',

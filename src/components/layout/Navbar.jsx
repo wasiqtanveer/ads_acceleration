@@ -153,6 +153,11 @@ const Navbar = () => {
                     <div className="mobile-divider"></div>
                     <Link to="/login" className="mobile-link" onClick={() => setIsOpen(false)}>Log In</Link>
                     <Link to="/signup" className="mobile-link" onClick={() => setIsOpen(false)}>Sign Up</Link>
+                    <div className="mobile-divider"></div>
+                    <button className="mobile-theme-toggle" onClick={toggleTheme} aria-label="Toggle Theme">
+                        {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                        <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                    </button>
                 </div>
             )}
         </nav>
