@@ -1,9 +1,18 @@
 import React from 'react';
-import { Rocket, Calculator, Image as ImageIcon, LineChart } from 'lucide-react';
+import { Rocket, Calculator, Image as ImageIcon, LineChart, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import './ToolsIndex.css';
 
 const toolsList = [
+    {
+        id: 'campaign-builder',
+        title: 'Campaign Builder',
+        description: 'Auto-generate bulk upload files for Amazon Sponsored Products campaigns.',
+        icon: <Target size={32} color="white" />,
+        path: '/tools/campaign-builder',
+        badge: 'New',
+        isReady: true
+    },
     {
         id: 'bidding-optimizer',
         title: 'Bidding Optimizer',

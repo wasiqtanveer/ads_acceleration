@@ -67,16 +67,17 @@ body:not(.light-mode) .optimizer-icon-ring::after {
     display: flex;
     justify-content: center;
     gap: 2rem;
-    margin-bottom: 2rem;
+    margin-top: 2.5rem;
     flex-wrap: wrap;
 }
 
 .instruction-card {
     width: 380px;
-    height: 220px;
+    height: 260px;
     perspective: 1000px;
     position: relative;
     cursor: pointer;
+    overflow: hidden;
 }
 
 .instruction-card .card-front,
@@ -106,7 +107,11 @@ body:not(.light-mode) .optimizer-icon-ring::after {
     background: var(--color-bg-light);
     border-color: rgba(229, 9, 20, 0.2);
     align-items: flex-start;
-    padding: 2rem;
+    padding: 1.5rem 1.5rem 1.5rem 1.75rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-primary) transparent;
+    justify-content: flex-start;
 }
 
 body:not(.light-mode) .instruction-card .card-back {

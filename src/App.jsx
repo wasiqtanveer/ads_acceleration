@@ -6,6 +6,7 @@ import CustomCursor from './components/layout/CustomCursor';
 import Home from './pages/Home/Home';
 import ToolsIndex from './pages/Tools/ToolsIndex';
 import BiddingOptimizer from './pages/Tools/BiddingOptimizer';
+import CampaignBuilder from './pages/Tools/CampaignBuilder';
 import Login from './pages/Auth/Login';
 import Pricing from './pages/Home/Pricing';
 import LeadCapturePage from './pages/Lead/LeadCapturePage';
@@ -39,6 +40,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/tools" element={<ToolsIndex />} />
             <Route path="/tools/bidding-optimizer" element={<BiddingOptimizer />} />
+            <Route path="/tools/campaign-builder" element={<CampaignBuilder />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/faq" element={<Home />} />
             <Route path="/login" element={<Login />} />

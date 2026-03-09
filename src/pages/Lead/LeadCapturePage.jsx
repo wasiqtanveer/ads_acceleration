@@ -25,6 +25,22 @@ const TOOL_REGISTRY = {
         toolUrl: '', // Leave empty to show "No free tool available yet"
         successMessage: "You're in! Your private access link is on its way to your inbox.",
     },
+    'campaign-builder': {
+        badge: '🚀 Free Access — Campaign Builder',
+        headline: (
+            <>
+                BUILD AMAZON CAMPAIGNS FOR <span className="highlight-yellow">MAXIMUM ROI</span> via AUTOMATION
+            </>
+        ),
+        subText: (
+            <p className="lead-sub-text">
+                Generate bulk upload files for Sponsored Products campaigns in seconds.
+            </p>
+        ),
+        ctaLabel: 'Get Free Access',
+        toolUrl: '/#/tools/campaign-builder',
+        successMessage: "You're in! Access the Campaign Builder now.",
+    },
 };
 
 const DEFAULT_TOOL = TOOL_REGISTRY['free-tool'];
