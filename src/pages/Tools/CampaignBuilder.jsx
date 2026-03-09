@@ -50,6 +50,101 @@ const DEFAULT_CONFIG = {
     autoTargetTypes: ['Close Match', 'Loose Match', 'Substitutes', 'Complements']
 };
 
+// ─── Amazon Sponsored Products Bulk Upload Helpers ────────────────────────────
+
+const AMAZON_COLUMNS = [
+    'Product', 'Entity', 'Operation', 'Campaign Id', 'Ad Group Id',
+    'Portfolio Id', 'Ad Id', 'Keyword Id', 'Product Targeting Id',
+    'Campaign Name', 'Ad Group Name', 'Start Date', 'End Date',
+    'Targeting Type', 'State', 'Daily Budget', 'SKU', 'ASIN',
+    'Ad Group Default Bid', 'Bid', 'Keyword Text', 'Match Type',
+    'Bidding Strategy', 'Placement', 'Percentage'
+];
+
+const AUTO_TARGET_MAP = {
+    'Close Match': 'queryHighRelMatches',
+    'Loose Match': 'queryBroadRelMatches',
+    'Substitutes': 'asinSubstituteRelated',
+    'Complements': 'asinAccessoryRelated'
+};
+
+// Broader types should negate keywords from all tighter types when isolation is on
+const ISOLATION_TIGHTER = {
+    'Phrase Match':  ['Exact Match', 'Single Keyword'],
+    'Brand Match':   ['Exact Match', 'Single Keyword'],
+    'Broad Match':   ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match'],
+    'Broad-BMM':     ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match'],
+    'Auto Match':    ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match', 'Broad Match', 'Broad-BMM'],
+};
+
+const fmtDate = (d) => d.replace(/-/g, '');
+const toBMM = (kw) => kw.trim().split(/\s+/).map(w => `+${w}`).join(' ');
+const splitLines = (txt) => (txt || '').split('\n').map(s => s.trim()).filter(Boolean);
+
+const mkRow = (data) => {
+    const r = {};
+    AMAZON_COLUMNS.forEach(c => { r[c] = ''; });
+    return Object.assign(r, data);
+};
+
+const downloadBulk = (rows, filename) => {
+    const ws = XLSX.utils.json_to_sheet(rows, { header: AMAZON_COLUMNS });
+    ws['!cols'] = AMAZON_COLUMNS.map(h => ({ wch: Math.max(h.length + 2, 16) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sponsored Products');
+    XLSX.writeFile(wb, filename);
+};
+
+// Shared builder: campaign + placements + ad group + product ad
+const buildCampaignCore = (name, date, targeting, budget, strategy, bid, agName, sku, placements) => {
+    const rows = [];
+    rows.push(mkRow({
+        Product: 'Sponsored Products', Entity: 'Campaign', Operation: 'Create',
+        'Campaign Name': name, 'Start Date': date,
+        'Targeting Type': targeting, State: 'enabled',
+        'Daily Budget': budget, 'Bidding Strategy': strategy,
+    }));
+    [['Placement Top', placements.top],
+     ['Placement Product Page', placements.product],
+     ['Placement Rest Of Search', placements.rest]
+    ].forEach(([p, v]) => {
+        if (parseFloat(v) > 0) {
+            rows.push(mkRow({
+                Product: 'Sponsored Products', Entity: 'Bidding Adjustment', Operation: 'Create',
+                'Campaign Name': name, Placement: p, Percentage: v,
+            }));
+        }
+    });
+    rows.push(mkRow({
+        Product: 'Sponsored Products', Entity: 'Ad Group', Operation: 'Create',
+        'Campaign Name': name, 'Ad Group Name': agName,
+        'Ad Group Default Bid': bid, State: 'enabled',
+    }));
+    rows.push(mkRow({
+        Product: 'Sponsored Products', Entity: 'Product Ad', Operation: 'Create',
+        'Campaign Name': name, 'Ad Group Name': agName,
+        SKU: sku, State: 'enabled',
+    }));
+    return rows;
+};
+
+const addNegatives = (rows, name, agName, negExact, negPhrase) => {
+    negExact.forEach(nk => {
+        rows.push(mkRow({
+            Product: 'Sponsored Products', Entity: 'Negative Keyword', Operation: 'Create',
+            'Campaign Name': name, 'Ad Group Name': agName,
+            'Keyword Text': nk, 'Match Type': 'negativeExact', State: 'enabled',
+        }));
+    });
+    negPhrase.forEach(nk => {
+        rows.push(mkRow({
+            Product: 'Sponsored Products', Entity: 'Negative Keyword', Operation: 'Create',
+            'Campaign Name': name, 'Ad Group Name': agName,
+            'Keyword Text': nk, 'Match Type': 'negativePhrase', State: 'enabled',
+        }));
+    });
+};
+
 const CampaignBuilder = () => {
     // ─── Mode State ─────────────────────────────────────────────────────────────
     const [mode, setMode] = useState('standard'); // 'standard' or 'rank'
@@ -143,14 +238,185 @@ const CampaignBuilder = () => {
         }));
     };
 
-    // Export Logic (Placeholder for full implementation in Standard Mode to ensure no crash)
+    // ─── Standard Campaign Generation ─────────────────────────────────────────
     const handleGenerateStandard = () => {
-        // Validation and logic intentionally abridged for now to focus on UI structural changes
-        alert("Standard Generation Logic to be implemented. Testing UI layout first.");
+        const skusList = productSkus.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+        if (!skusList.length || !selectedTypes.length) return;
+
+        const rows = [];
+        const date = fmtDate(standardDetails.startDate);
+
+        // Gather keywords per type for search isolation
+        const kwsByType = {};
+        selectedTypes.forEach(t => {
+            kwsByType[t] = configs[t] ? splitLines(configs[t].keywords) : [];
+        });
+
+        skusList.forEach(sku => {
+            selectedTypes.forEach(typeId => {
+                const typeInfo = CAMPAIGN_TYPES.find(t => t.id === typeId);
+                const cfg = configs[typeId];
+                if (!typeInfo || !cfg) return;
+
+                const isAuto    = typeId === 'Auto Match';
+                const isProduct = typeId === 'Product Match';
+                const isBMM     = typeId === 'Broad-BMM';
+                const isSingle  = typeId === 'Single Keyword';
+
+                const keywords  = splitLines(cfg.keywords);
+                if (!isAuto && keywords.length === 0) return;
+
+                const negExact  = splitLines(cfg.negativeExact);
+                const negPhrase = splitLines(cfg.negativePhrase);
+
+                // Single Keyword → one campaign per keyword; others → one campaign for all
+                const sets = isSingle
+                    ? keywords.map(kw => ({ kws: [kw], tag: kw }))
+                    : [{ kws: keywords, tag: null }];
+
+                sets.forEach(({ kws, tag }) => {
+                    let name = standardDetails.campaignNameTemplate
+                        .replace(/\[SKU\]/gi, sku)
+                        .replace(/\[MATCH TYPE\]/gi, typeId)
+                        .replace(/\[BID RANGE\]/gi, bidRanges.join(' & '));
+                    if (tag) name += ` - ${tag}`;
+
+                    const agName = name + ' - Ad Group';
+                    const placements = { top: cfg.topOfSearch, product: cfg.productPages, rest: cfg.restOfSearch };
+
+                    // Core rows: campaign, placements, ad group, product ad
+                    rows.push(...buildCampaignCore(
+                        name, date, isAuto ? 'Auto' : 'Manual',
+                        cfg.budget, cfg.biddingStrategy, cfg.startingBid,
+                        agName, sku, placements
+                    ));
+
+                    // Keywords / Targets
+                    if (isAuto) {
+                        const allAT = ['Close Match', 'Loose Match', 'Substitutes', 'Complements'];
+                        const enabled = cfg.autoTargetTypes || allAT;
+                        allAT.forEach(at => {
+                            rows.push(mkRow({
+                                Product: 'Sponsored Products', Entity: 'Product Targeting', Operation: 'Create',
+                                'Campaign Name': name, 'Ad Group Name': agName,
+                                State: enabled.includes(at) ? 'enabled' : 'paused',
+                                'Keyword Text': AUTO_TARGET_MAP[at], Bid: cfg.startingBid,
+                            }));
+                        });
+                    } else if (isProduct) {
+                        kws.forEach(asin => {
+                            rows.push(mkRow({
+                                Product: 'Sponsored Products', Entity: 'Product Targeting', Operation: 'Create',
+                                'Campaign Name': name, 'Ad Group Name': agName,
+                                'Keyword Text': `asin="${asin}"`, Bid: cfg.startingBid, State: 'enabled',
+                            }));
+                        });
+                    } else {
+                        const mt = isBMM ? 'broad' : typeInfo.matchType.toLowerCase();
+                        kws.forEach(kw => {
+                            rows.push(mkRow({
+                                Product: 'Sponsored Products', Entity: 'Keyword', Operation: 'Create',
+                                'Campaign Name': name, 'Ad Group Name': agName,
+                                'Keyword Text': isBMM ? toBMM(kw) : kw,
+                                'Match Type': mt, Bid: cfg.startingBid, State: 'enabled',
+                            }));
+                        });
+                    }
+
+                    // User-defined negatives
+                    addNegatives(rows, name, agName, negExact, negPhrase);
+
+                    // Search isolation: negate keywords from tighter match types
+                    if (searchIsolation === 'Isolate' && ISOLATION_TIGHTER[typeId]) {
+                        const already = new Set([...negExact, ...negPhrase]);
+                        ISOLATION_TIGHTER[typeId].forEach(tighterType => {
+                            if (!selectedTypes.includes(tighterType)) return;
+                            (kwsByType[tighterType] || []).forEach(kw => {
+                                if (already.has(kw)) return;
+                                already.add(kw);
+                                rows.push(mkRow({
+                                    Product: 'Sponsored Products',
+                                    Entity: 'Campaign Negative Keyword', Operation: 'Create',
+                                    'Campaign Name': name,
+                                    'Keyword Text': kw, 'Match Type': 'negativeExact', State: 'enabled',
+                                }));
+                            });
+                        });
+                    }
+                });
+            });
+        });
+
+        if (rows.length === 0) {
+            alert('Nothing to generate — make sure keywords are entered for your selected campaign types.');
+            return;
+        }
+        downloadBulk(rows, `Standard_Campaigns_${fmtDate(standardDetails.startDate)}.xlsx`);
     };
 
+    // ─── Rank Campaign Generation ────────────────────────────────────────────
     const handleGenerateRank = () => {
-        alert("Rank Generation Logic to be implemented. Testing UI layout first.");
+        const sku = rankDetails.productSku.trim();
+        if (!sku || !rankKeywordGroups.length) return;
+
+        const rows = [];
+        const date = fmtDate(new Date().toISOString().split('T')[0]);
+
+        rankKeywordGroups.forEach(group => {
+            const keywords  = splitLines(group.keywords);
+            const negExact  = splitLines(group.negativeExact);
+            const negPhrase = splitLines(group.negativePhrase);
+
+            keywords.forEach(keyword => {
+                // Two campaigns per keyword: Exact match + Broad-BMM
+                [
+                    { label: 'Exact', mt: 'exact', text: keyword },
+                    { label: 'Broad', mt: 'broad', text: toBMM(keyword) }
+                ].forEach(({ label, mt, text }) => {
+                    let name = rankDetails.campaignNameTemplate
+                        .replace(/\[SKU\]/gi, sku)
+                        .replace(/\[KEYWORD GROUP\]/gi, group.groupName.toUpperCase())
+                        .replace(/\[MATCH TYPE\]/gi, label)
+                        .replace(/\[SP - KW\.\]/gi, 'SP - KW.');
+
+                    const agName = name + ' - Ad Group';
+                    const placements = { top: group.topOfSearch, product: group.productPages, rest: group.restOfSearch };
+
+                    rows.push(...buildCampaignCore(
+                        name, date, 'Manual',
+                        group.budget, group.biddingStrategy, group.startingBid,
+                        agName, sku, placements
+                    ));
+
+                    // Single keyword row
+                    rows.push(mkRow({
+                        Product: 'Sponsored Products', Entity: 'Keyword', Operation: 'Create',
+                        'Campaign Name': name, 'Ad Group Name': agName,
+                        'Keyword Text': text, 'Match Type': mt,
+                        Bid: group.startingBid, State: 'enabled',
+                    }));
+
+                    // User-defined negatives
+                    addNegatives(rows, name, agName, negExact, negPhrase);
+
+                    // Isolation: broad campaign negates the exact keyword
+                    if (mt === 'broad') {
+                        rows.push(mkRow({
+                            Product: 'Sponsored Products',
+                            Entity: 'Campaign Negative Keyword', Operation: 'Create',
+                            'Campaign Name': name,
+                            'Keyword Text': keyword, 'Match Type': 'negativeExact', State: 'enabled',
+                        }));
+                    }
+                });
+            });
+        });
+
+        if (rows.length === 0) {
+            alert('Nothing to generate — add keyword groups first.');
+            return;
+        }
+        downloadBulk(rows, `Rank_Campaigns_${sku}_${date}.xlsx`);
     };
 
     // ─── RENDERERS ─────────────────────────────────────────────────────────────
