@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rocket, Calculator, Image as ImageIcon, LineChart, Target } from 'lucide-react';
+import { Rocket, Calculator, Image as ImageIcon, LineChart, Target, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import './ToolsIndex.css';
 
@@ -19,6 +19,15 @@ const toolsList = [
         description: 'Auto-adjust keyword bids using smart Inch Up and RPC targeting to maximize PPC profitability.',
         icon: <Calculator size={32} color="white" />,
         path: '/tools/bidding-optimizer',
+        badge: 'New',
+        isReady: true
+    },
+    {
+        id: 'ngram-analyzer',
+        title: 'N-Gram Analyzer',
+        description: 'Discover hidden word patterns in your search terms that drive spend, sales, and wasted ad budget.',
+        icon: <Search size={32} color="white" />,
+        path: '/tools/ngram-analyzer',
         badge: 'New',
         isReady: true
     },
