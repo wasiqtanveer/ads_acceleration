@@ -58,23 +58,23 @@ const AMAZON_COLUMNS = [
     'Campaign Name', 'Ad Group Name', 'Start Date', 'End Date',
     'Targeting Type', 'State', 'Daily Budget', 'SKU', 'ASIN',
     'Ad Group Default Bid', 'Bid', 'Keyword Text', 'Match Type',
-    'Bidding Strategy', 'Placement', 'Percentage'
+    'Bidding Strategy', 'Placement', 'Percentage', 'Product Targeting Expression'
 ];
 
 const AUTO_TARGET_MAP = {
-    'Close Match': 'queryHighRelMatches',
-    'Loose Match': 'queryBroadRelMatches',
-    'Substitutes': 'asinSubstituteRelated',
-    'Complements': 'asinAccessoryRelated'
+    'Close Match': 'close-match',
+    'Loose Match': 'loose-match',
+    'Substitutes': 'substitutes',
+    'Complements': 'complements'
 };
 
 // Broader types should negate keywords from all tighter types when isolation is on
 const ISOLATION_TIGHTER = {
-    'Phrase Match':  ['Exact Match', 'Single Keyword'],
-    'Brand Match':   ['Exact Match', 'Single Keyword'],
-    'Broad Match':   ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match'],
-    'Broad-BMM':     ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match'],
-    'Auto Match':    ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match', 'Broad Match', 'Broad-BMM'],
+    'Phrase Match': ['Exact Match', 'Single Keyword'],
+    'Brand Match': ['Exact Match', 'Single Keyword'],
+    'Broad Match': ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match'],
+    'Broad-BMM': ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match'],
+    'Auto Match': ['Exact Match', 'Single Keyword', 'Phrase Match', 'Brand Match', 'Broad Match', 'Broad-BMM'],
 };
 
 const fmtDate = (d) => d.replace(/-/g, '');
@@ -104,16 +104,14 @@ const buildCampaignCore = (name, date, targeting, budget, strategy, bid, agName,
         'Targeting Type': targeting, State: 'enabled',
         'Daily Budget': budget, 'Bidding Strategy': strategy,
     }));
-    [['Placement Top', placements.top],
-     ['Placement Product Page', placements.product],
-     ['Placement Rest Of Search', placements.rest]
+    [['Placement Top', placements.top || '0'],
+    ['Placement Product Page', placements.product || '0'],
+    ['Placement Rest Of Search', placements.rest || '0']
     ].forEach(([p, v]) => {
-        if (parseFloat(v) > 0) {
-            rows.push(mkRow({
-                Product: 'Sponsored Products', Entity: 'Bidding Adjustment', Operation: 'Create',
-                'Campaign Name': name, Placement: p, Percentage: v,
-            }));
-        }
+        rows.push(mkRow({
+            Product: 'Sponsored Products', Entity: 'Bidding Adjustment', Operation: 'Create',
+            'Campaign Name': name, Placement: p, Percentage: v,
+        }));
     });
     rows.push(mkRow({
         Product: 'Sponsored Products', Entity: 'Ad Group', Operation: 'Create',
@@ -258,15 +256,15 @@ const CampaignBuilder = () => {
                 const cfg = configs[typeId];
                 if (!typeInfo || !cfg) return;
 
-                const isAuto    = typeId === 'Auto Match';
+                const isAuto = typeId === 'Auto Match';
                 const isProduct = typeId === 'Product Match';
-                const isBMM     = typeId === 'Broad-BMM';
-                const isSingle  = typeId === 'Single Keyword';
+                const isBMM = typeId === 'Broad-BMM';
+                const isSingle = typeId === 'Single Keyword';
 
-                const keywords  = splitLines(cfg.keywords);
+                const keywords = splitLines(cfg.keywords);
                 if (!isAuto && keywords.length === 0) return;
 
-                const negExact  = splitLines(cfg.negativeExact);
+                const negExact = splitLines(cfg.negativeExact);
                 const negPhrase = splitLines(cfg.negativePhrase);
 
                 // Single Keyword → one campaign per keyword; others → one campaign for all
@@ -300,7 +298,7 @@ const CampaignBuilder = () => {
                                 Product: 'Sponsored Products', Entity: 'Product Targeting', Operation: 'Create',
                                 'Campaign Name': name, 'Ad Group Name': agName,
                                 State: enabled.includes(at) ? 'enabled' : 'paused',
-                                'Keyword Text': AUTO_TARGET_MAP[at], Bid: cfg.startingBid,
+                                'Product Targeting Expression': AUTO_TARGET_MAP[at], Bid: cfg.startingBid,
                             }));
                         });
                     } else if (isProduct) {
@@ -308,7 +306,7 @@ const CampaignBuilder = () => {
                             rows.push(mkRow({
                                 Product: 'Sponsored Products', Entity: 'Product Targeting', Operation: 'Create',
                                 'Campaign Name': name, 'Ad Group Name': agName,
-                                'Keyword Text': `asin="${asin}"`, Bid: cfg.startingBid, State: 'enabled',
+                                'Product Targeting Expression': `asin="${asin}"`, Bid: cfg.startingBid, State: 'enabled',
                             }));
                         });
                     } else {
@@ -363,8 +361,8 @@ const CampaignBuilder = () => {
         const date = fmtDate(new Date().toISOString().split('T')[0]);
 
         rankKeywordGroups.forEach(group => {
-            const keywords  = splitLines(group.keywords);
-            const negExact  = splitLines(group.negativeExact);
+            const keywords = splitLines(group.keywords);
+            const negExact = splitLines(group.negativeExact);
             const negPhrase = splitLines(group.negativePhrase);
 
             keywords.forEach(keyword => {
@@ -622,7 +620,7 @@ const CampaignBuilder = () => {
                                             <label>
                                                 {activeTab === 'Product Match' ? 'Product Targets (ASINs)'
                                                     : activeTab === 'Brand Match' ? 'Brand Keywords'
-                                                    : 'Keywords'}
+                                                        : 'Keywords'}
                                                 {' '}<HelpTip text={
                                                     activeTab === 'Product Match'
                                                         ? 'Enter competitor or complementary product ASINs to target. One ASIN per line (e.g., B01N5IB20Q). Your ads will appear on these product detail pages.'
@@ -1168,7 +1166,7 @@ const CampaignBuilder = () => {
                                                         onClick={() => setRankKeywordGroups(prev => prev.filter((_, idx) => idx !== i))}
                                                         title="Delete"
                                                     >
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" /></svg>
                                                     </button>
                                                 </div>
                                             </div>

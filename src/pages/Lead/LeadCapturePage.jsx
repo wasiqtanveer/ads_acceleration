@@ -38,7 +38,7 @@ const TOOL_REGISTRY = {
             </p>
         ),
         ctaLabel: 'Get Free Access',
-        toolUrl: '/#/tools/campaign-builder',
+        toolUrl: '/tools/campaign-builder',
         successMessage: "You're in! Access the Campaign Builder now.",
     },
 };
@@ -247,9 +247,9 @@ const LeadCapturePage = () => {
 
                                 {/* Primary CTA — goto the tool */}
                                 {tool.toolUrl ? (
-                                    <a href={tool.toolUrl} target="_blank" rel="noopener noreferrer" className="lead-success-btn">
+                                    <Link to={tool.toolUrl} className="lead-success-btn">
                                         Go to the Tool <ArrowRight size={16} />
-                                    </a>
+                                    </Link>
                                 ) : (
                                     <div className="lead-success-btn disabled">
                                         No free tool available yet
