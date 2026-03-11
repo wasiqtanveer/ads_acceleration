@@ -77,6 +77,8 @@ const NgramAnalyzer = () => {
     const [globalSearch, setGlobalSearch] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'cost', direction: 'desc' });
     const [currentPage, setCurrentPage] = useState(1);
+    const [columnFilters, setColumnFilters] = useState({});
+    const [filtersVisible, setFiltersVisible] = useState(false);
     const itemsPerPage = 100;
 
     const fileInputRef = useRef(null);
@@ -353,6 +355,40 @@ const NgramAnalyzer = () => {
             }
         }
 
+        // Column filters
+        const cf = columnFilters;
+        // Phrase text filter
+        if (cf.phrase && cf.phrase.trim()) {
+            const pq = cf.phrase.trim().toLowerCase();
+            data = data.filter(d => d.phrase.includes(pq));
+        }
+        // Numeric / currency range filters (raw values)
+        for (const k of ['freq', 'impressions', 'clicks', 'cost', 'sales', 'orders', 'units', 'cpc']) {
+            const minVal = cf[`${k}_min`];
+            const maxVal = cf[`${k}_max`];
+            if (minVal !== undefined && minVal !== '') {
+                const min = parseFloat(minVal);
+                if (!isNaN(min)) data = data.filter(d => d[k] >= min);
+            }
+            if (maxVal !== undefined && maxVal !== '') {
+                const max = parseFloat(maxVal);
+                if (!isNaN(max)) data = data.filter(d => d[k] <= max);
+            }
+        }
+        // Percentage range filters — user inputs 0–100, stored as 0–1
+        for (const k of ['ctr', 'cvr', 'acos']) {
+            const minVal = cf[`${k}_min`];
+            const maxVal = cf[`${k}_max`];
+            if (minVal !== undefined && minVal !== '') {
+                const min = parseFloat(minVal) / 100;
+                if (!isNaN(min)) data = data.filter(d => d[k] >= min);
+            }
+            if (maxVal !== undefined && maxVal !== '') {
+                const max = parseFloat(maxVal) / 100;
+                if (!isNaN(max)) data = data.filter(d => d[k] <= max);
+            }
+        }
+
         // Sort
         if (sortConfig.key) {
             data.sort((a, b) => {
@@ -366,7 +402,7 @@ const NgramAnalyzer = () => {
         }
 
         return data;
-    }, [ngramResults, activeTab, globalSearch, sortConfig]);
+    }, [ngramResults, activeTab, globalSearch, sortConfig, columnFilters]);
 
     // Pagination
     const totalPages = Math.ceil(processedData.length / itemsPerPage);
@@ -436,6 +472,8 @@ const NgramAnalyzer = () => {
         setStopwordsEnabled(false);
         setStopwordsRaw(DEFAULT_STOPWORDS);
         setCurrentPage(1);
+        setColumnFilters({});
+        setFiltersVisible(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -527,15 +565,24 @@ const NgramAnalyzer = () => {
                         </ul>
                     </div>
                     <div className="ngram-info-divider" />
-                    <div className="ngram-info-col">
+                    <div className="ngram-info-col ngram-info-col-scroll">
                         <h4>How To Use</h4>
                         <ol>
-                            <li>Export your <strong>Search Term Report</strong> from Amazon Ads Console</li>
+                            <li>In Amazon Advertising, go to <strong>Campaign Manager → Measurement &amp; Reporting → Reporting Beta</strong></li>
+                            <li>Click <strong>Create Report</strong>, name it, select your Ad Account, Campaigns, Country and Ad Types</li>
+                            <li>Under <strong>Customize Columns</strong>, select all of the following:<br />
+                                <ul style={{ marginTop: '0.5rem', lineHeight: 1.9, listStyle: 'none', paddingLeft: '0.25rem' }}>
+                                    {['Budget currency','Date','Portfolio ID','Portfolio name','Campaign ID','Campaign name','Ad group ID','Ad group name','Advertised product ID','Advertised product SKU','Placement Name','Placement size','Site or app','Placement classification','Target value','Target match type','Search term','Matched target','Ad ID','Ad product','Impressions','Clicks','Purchases','Sales','Units sold','CTR','CPC','Total cost'].map(col => (
+                                        <li key={col} style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                                            <span style={{ color: 'var(--color-primary)', marginRight: '0.4rem' }}>✓</span>{col}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </li>
+                            <li>Set your date range, click <strong>Save and Run</strong>, then download the exported file</li>
                             <li>Upload the CSV or Excel file below</li>
-                            <li>Optionally filter by ASIN or enable the stopword filter</li>
-                            <li>Click <strong>Run N-Gram Analysis</strong></li>
-                            <li>Review the Insights panel and results table</li>
-                            <li>Export results as a multi-sheet Excel file</li>
+                            <li>Optionally filter by ASIN or enable the stopword filter, then click <strong>Run N-Gram Analysis</strong></li>
+                            <li>Review the Insights panel, explore the results table, and export as Excel</li>
                         </ol>
                     </div>
                 </div>
@@ -714,11 +761,10 @@ const NgramAnalyzer = () => {
                                 <button
                                     key={n}
                                     className={`ngram-tab-btn ${activeTab === n ? 'active' : ''}`}
-                                    onClick={() => { setActiveTab(n); setCurrentPage(1); setGlobalSearch(''); }}
+                                    onClick={() => { setActiveTab(n); setCurrentPage(1); setGlobalSearch(''); setColumnFilters({}); }}
                                     title={stopwordsEnabled ? `${n}-word patterns (stopwords removed)` : `${n}-word patterns`}
                                 >
                                     {n}-Word{stopwordsEnabled ? <span className="ngram-tab-sw">stopwords</span> : ''}
-                                    <span className="ngram-tab-count">{(ngramResults[n] || []).length}</span>
                                 </button>
                             ))}
                         </div>
@@ -838,6 +884,14 @@ const NgramAnalyzer = () => {
                                     >
                                         Exact match
                                     </button>
+                                    <button
+                                        className={`ngram-match-toggle ${filtersVisible ? 'active' : ''}`}
+                                        onClick={() => setFiltersVisible(p => !p)}
+                                        title="Toggle column filters"
+                                    >
+                                        <Filter size={14} style={{ marginRight: '0.3rem', verticalAlign: 'middle' }} />
+                                        Filters{Object.values(columnFilters).filter(v => v !== '').length > 0 ? ` (${Object.values(columnFilters).filter(v => v !== '').length})` : ''}
+                                    </button>
                                     <button className="ngram-export-btn" onClick={handleExport}>
                                         <Download size={16} /> Export Excel
                                     </button>
@@ -868,6 +922,51 @@ const NgramAnalyzer = () => {
                                                 ))}
                                                 <th className="ngram-th">Status</th>
                                             </tr>
+                                            {filtersVisible && (
+                                                <tr className="ngram-filter-row">
+                                                    {columns.map(col => (
+                                                        <td key={col.key} className="ngram-filter-cell">
+                                                            {col.key === 'phrase' ? (
+                                                                <input
+                                                                    className="ngram-col-filter-text"
+                                                                    type="text"
+                                                                    placeholder="filter…"
+                                                                    value={columnFilters.phrase || ''}
+                                                                    onChange={e => { setColumnFilters(p => ({ ...p, phrase: e.target.value })); setCurrentPage(1); }}
+                                                                />
+                                                            ) : (
+                                                                <div className="ngram-col-filter-range">
+                                                                    <input
+                                                                        className="ngram-col-filter-num"
+                                                                        type="number"
+                                                                        placeholder={['ctr','cvr','acos'].includes(col.key) ? 'min %' : 'min'}
+                                                                        value={columnFilters[`${col.key}_min`] || ''}
+                                                                        onChange={e => { setColumnFilters(p => ({ ...p, [`${col.key}_min`]: e.target.value })); setCurrentPage(1); }}
+                                                                    />
+                                                                    <input
+                                                                        className="ngram-col-filter-num"
+                                                                        type="number"
+                                                                        placeholder={['ctr','cvr','acos'].includes(col.key) ? 'max %' : 'max'}
+                                                                        value={columnFilters[`${col.key}_max`] || ''}
+                                                                        onChange={e => { setColumnFilters(p => ({ ...p, [`${col.key}_max`]: e.target.value })); setCurrentPage(1); }}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    ))}
+                                                    <td className="ngram-filter-cell">
+                                                        {Object.values(columnFilters).some(v => v !== '') && (
+                                                            <button
+                                                                className="ngram-filter-clear-btn"
+                                                                onClick={() => { setColumnFilters({}); setCurrentPage(1); }}
+                                                                title="Clear all column filters"
+                                                            >
+                                                                <X size={12} /> Clear
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </thead>
                                         <tbody>
                                             {paginatedData.map((row, idx) => (
