@@ -22,7 +22,7 @@ const TOOL_REGISTRY = {
             </p>
         ),
         ctaLabel: 'Get Free Access',
-        toolUrl: '', // Leave empty to show "No free tool available yet"
+        toolUrl: 'https://adsacceleration.com/tools/ngram-analyzer', // Leave empty to show "No free tool available yet"
         successMessage: "You're in! Your private access link is on its way to your inbox.",
     },
     'campaign-builder': {
