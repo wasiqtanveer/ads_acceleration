@@ -8,6 +8,8 @@ import {
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import './NgramAnalyzer.css';
+import RegistrationModal from '../../components/ui/RegistrationModal';
+import useRegistration from '../../context/useRegistration';
 
 // ======================================
 // HELPERS
@@ -55,6 +57,9 @@ const DEFAULT_STOPWORDS = 'di, il, la, le, gli, i, un, una, uno, da, del, della,
 // COMPONENT
 // ======================================
 const NgramAnalyzer = () => {
+    const { isRegistered } = useRegistration();
+    const [showRegModal, setShowRegModal] = useState(false);
+
     // File + Data
     const [file, setFile] = useState(null);
     const [isParsing, setIsParsing] = useState(false);
@@ -716,7 +721,7 @@ const NgramAnalyzer = () => {
                                 {!ngramResults && (
                                     <button
                                         className="btn btn-primary"
-                                        onClick={runAnalysis}
+                                        onClick={() => isRegistered ? runAnalysis() : setShowRegModal(true)}
                                         style={{ alignSelf: 'center', marginTop: '0.5rem' }}
                                     >
                                         <BarChart3 size={18} style={{ marginRight: '0.5rem' }} />
@@ -1038,6 +1043,14 @@ const NgramAnalyzer = () => {
                     </>
                 )}
             </div>
+
+            {/* Registration Gate Modal */}
+            <RegistrationModal
+                isOpen={showRegModal}
+                onClose={() => setShowRegModal(false)}
+                onSuccess={() => { setShowRegModal(false); runAnalysis(); }}
+                toolSlug="ngram-analyzer"
+            />
         </section>
     );
 };

@@ -2,8 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ChevronDown, Download, AlertCircle, Settings, X, FileSpreadsheet, TrendingUp, TrendingDown, Eye, DollarSign } from 'lucide-react';
 import './BiddingOptimizer.css';
 import * as XLSX from 'xlsx';
+import RegistrationModal from '../../components/ui/RegistrationModal';
+import useRegistration from '../../context/useRegistration';
 
 const BiddingOptimizer = () => {
+    const { isRegistered } = useRegistration();
+    const [showRegModal, setShowRegModal] = useState(false);
+
     // Strategy Settings State
     const [strategy, setStrategy] = useState('inch-up-acos');
     const [adType, setAdType] = useState('sponsored-products');
@@ -669,6 +674,7 @@ const BiddingOptimizer = () => {
     })();
 
     return (
+        <>
         <div className="bidding-optimizer-page section">
             {/* Header Section */}
             <div className="container">
@@ -1099,7 +1105,7 @@ const BiddingOptimizer = () => {
                                         Preview Impact ({impactStats.count})
                                     </button>
                                 )}
-                                <button onClick={handleExport} disabled={isParsing || processedData.length === 0} className="export-btn">
+                                <button onClick={() => isRegistered ? handleExport() : setShowRegModal(true)} disabled={isParsing || processedData.length === 0} className="export-btn">
                                     <Download size={18} />
                                     Export Optimized Bulksheet ({processedData.length})
                                 </button>
@@ -1257,6 +1263,15 @@ const BiddingOptimizer = () => {
                 </div>
             )}
         </div>
+
+            {/* Registration Gate Modal */}
+            <RegistrationModal
+                isOpen={showRegModal}
+                onClose={() => setShowRegModal(false)}
+                onSuccess={() => { setShowRegModal(false); handleExport(); }}
+                toolSlug="bidding-optimizer"
+            />
+        </>
     );
 };
 

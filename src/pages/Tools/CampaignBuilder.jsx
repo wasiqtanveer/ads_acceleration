@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     ChevronDown,
     Target,
@@ -10,6 +10,8 @@ import {
 import * as XLSX from 'xlsx';
 import './BiddingOptimizer.css'; // Inheriting structural layout
 import './CampaignBuilder.css'; // Tool-specific additions
+import RegistrationModal from '../../components/ui/RegistrationModal';
+import useRegistration from '../../context/useRegistration';
 
 // Reusable tooltip component for consistent help icons
 const HelpTip = ({ text }) => (
@@ -144,6 +146,10 @@ const addNegatives = (rows, name, agName, negExact, negPhrase) => {
 };
 
 const CampaignBuilder = () => {
+    const { isRegistered } = useRegistration();
+    const [showRegModal, setShowRegModal] = useState(false);
+    const pendingActionRef = useRef(null);
+
     // ─── Mode State ─────────────────────────────────────────────────────────────
     const [mode, setMode] = useState('standard'); // 'standard' or 'rank'
 
@@ -781,7 +787,11 @@ const CampaignBuilder = () => {
                         )}
                         <button
                             className={`generate-btn${!canGenerate ? ' cb-generate-locked' : ''}`}
-                            onClick={handleGenerateStandard}
+                            onClick={() => {
+                                if (!canGenerate) return;
+                                if (isRegistered) { handleGenerateStandard(); }
+                                else { pendingActionRef.current = 'standard'; setShowRegModal(true); }
+                            }}
                             disabled={!canGenerate}
                         >
                             <Download size={24} />
@@ -1213,7 +1223,11 @@ const CampaignBuilder = () => {
                         )}
                         <button
                             className={`generate-btn${!canGenerateRank ? ' cb-generate-locked' : ''}`}
-                            onClick={handleGenerateRank}
+                            onClick={() => {
+                                if (!canGenerateRank) return;
+                                if (isRegistered) { handleGenerateRank(); }
+                                else { pendingActionRef.current = 'rank'; setShowRegModal(true); }
+                            }}
                             disabled={!canGenerateRank}
                         >
                             <Download size={24} />
@@ -1229,6 +1243,7 @@ const CampaignBuilder = () => {
     };
 
     return (
+        <>
         <div className="bidding-optimizer-page campaign-builder-page section">
             <div className="container">
                 {/* Header Section */}
@@ -1305,6 +1320,20 @@ const CampaignBuilder = () => {
                 </div>
             </div>
         </div>
+
+            {/* Registration Gate Modal */}
+            <RegistrationModal
+                isOpen={showRegModal}
+                onClose={() => setShowRegModal(false)}
+                onSuccess={() => {
+                    setShowRegModal(false);
+                    if (pendingActionRef.current === 'rank') handleGenerateRank();
+                    else handleGenerateStandard();
+                    pendingActionRef.current = null;
+                }}
+                toolSlug="campaign-builder"
+            />
+        </>
     );
 };
 
