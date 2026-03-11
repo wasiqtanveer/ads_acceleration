@@ -626,7 +626,7 @@ const NgramAnalyzer = () => {
                                 <div className="ngram-stopword-header">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                                         <Filter size={15} color="var(--color-text-muted)" />
-                                        <span className="ngram-stopword-title"> Stopword Filter</span>
+                                        <span className="ngram-stopword-title">Stopword Filter</span>
                                         <span className="ngram-stopword-hint">strips common words before n-gram generation</span>
                                     </div>
                                     <button
