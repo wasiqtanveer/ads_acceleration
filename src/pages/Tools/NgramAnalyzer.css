@@ -64,6 +64,59 @@ body:not(.light-mode) .ngram-icon-ring::after {
     }
 }
 
+/* =============================================
+   INFO CARD (replaces flip instruction cards)
+   ============================================= */
+.ngram-info-card {
+    display: flex;
+    margin-top: 2.5rem;
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    overflow: hidden;
+    text-align: left;
+    max-width: 860px;
+    width: 100%;
+}
+
+.ngram-info-col {
+    flex: 1;
+    padding: 2rem 2.25rem;
+}
+
+.ngram-info-col h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    font-family: var(--font-heading);
+}
+
+.ngram-info-col p {
+    font-size: 0.88rem;
+    color: var(--color-text-muted);
+    line-height: 1.65;
+    margin: 0 0 1rem 0;
+}
+
+.ngram-info-col ul,
+.ngram-info-col ol {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.88rem;
+    color: var(--color-text-muted);
+    line-height: 1.75;
+}
+
+.ngram-info-col li { margin-bottom: 0.25rem; }
+.ngram-info-col strong { color: var(--color-text); }
+
+.ngram-info-divider {
+    width: 1px;
+    background: var(--color-border);
+    flex-shrink: 0;
+}
+
 /* Instruction Cards — reuse same flip pattern */
 .ngram-instruction-cards {
     display: flex;
@@ -550,68 +603,235 @@ body:not(.light-mode) .ngram-tab-btn.active .ngram-tab-count {
 }
 
 /* =============================================
-   CHART SECTION
+   INSIGHTS PANEL
    ============================================= */
-.ngram-chart-section {
+.ngram-insights-panel {
     background: var(--color-bg-dark);
     border: 1px solid var(--color-border);
-    border-radius: 16px;
-    padding: 1.5rem;
+    border-radius: 20px;
+    padding: 1.75rem;
     margin-bottom: 1.5rem;
 }
 
-.ngram-chart-header {
+.ngram-insights-section-label {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
     gap: 0.75rem;
+    margin-bottom: 1rem;
 }
 
-.ngram-chart-header h3 {
-    font-size: 1rem;
-    margin: 0;
-    color: var(--color-text);
+.ngram-insights-section-label span:first-child {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--color-text-muted);
 }
 
-.ngram-chart-metric-switcher {
-    display: flex;
-    gap: 0.35rem;
+.ngram-insights-tag {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    background: rgba(59, 130, 246, 0.12);
+    color: #3b82f6;
+}
+
+.ngram-insights-tag.tab {
+    background: rgba(139, 92, 246, 0.12);
+    color: #8b5cf6;
+}
+
+.ngram-insights-global-grid,
+.ngram-insights-tab-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.ngram-insight-card {
     background: var(--color-bg-card);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 0.2rem;
+    border-radius: 14px;
+    padding: 1.25rem;
 }
 
-.ngram-chart-metric-btn {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.78rem;
+.ngram-insight-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted);
+    margin-bottom: 1rem;
+}
+
+.ngram-insight-card-title.converting { color: #22c55e; }
+.ngram-insight-card-title.negative   { color: #ef4444; }
+
+/* Spend bar */
+.ngram-spend-track {
+    display: flex;
+    height: 10px;
+    border-radius: 100px;
+    overflow: hidden;
+    background: var(--color-bg-dark);
+    margin-bottom: 1rem;
+    gap: 2px;
+}
+
+.ngram-spend-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.5s ease;
+}
+
+.ngram-spend-fill.converting     { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.ngram-spend-fill.non-converting { background: linear-gradient(90deg, #ef4444, #dc2626); }
+
+.ngram-spend-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ngram-spend-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+}
+
+.ngram-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ngram-legend-dot.converting     { background: #22c55e; }
+.ngram-legend-dot.non-converting { background: #ef4444; }
+
+.ngram-spend-legend-item strong {
+    color: var(--color-text);
+    margin-left: auto;
+}
+
+.ngram-legend-pct {
+    font-size: 0.72rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    background: var(--color-bg-dark);
+    color: var(--color-text-muted);
     font-weight: 600;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
+}
+
+/* Wasted spend big number */
+.ngram-insight-big-num {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #ef4444;
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+}
+
+.ngram-insight-sub {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+/* Insight list rows */
+.ngram-insight-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ngram-insight-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 8px;
+    background: var(--color-bg-dark);
+    font-size: 0.8rem;
+}
+
+.ngram-insight-rank {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    min-width: 22px;
+}
+
+.ngram-insight-phrase {
+    flex: 1;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ngram-insight-revenue { font-weight: 700; color: #22c55e; white-space: nowrap; }
+.ngram-insight-spend   { font-weight: 700; color: #ef4444; white-space: nowrap; }
+
+.ngram-insight-orders,
+.ngram-insight-zero {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.ngram-insight-orders { background: rgba(34, 197, 94, 0.12);  color: #22c55e; }
+.ngram-insight-zero   { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+
+.ngram-insight-empty {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: 1rem 0;
+    margin: 0;
+}
+
+/* Exact-match toggle */
+.ngram-match-toggle {
+    padding: 0.7rem 1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-dark);
     color: var(--color-text-muted);
     cursor: pointer;
+    white-space: nowrap;
     transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
 }
 
-.ngram-chart-metric-btn:hover:not(.active) {
-    color: var(--color-text);
+.ngram-match-toggle:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
 }
 
-.ngram-chart-metric-btn.active {
+.ngram-match-toggle.active {
     background: var(--color-primary);
+    border-color: var(--color-primary);
     color: white;
+    box-shadow: 0 2px 8px rgba(229, 9, 20, 0.3);
 }
 
-body:not(.light-mode) .ngram-chart-metric-btn.active {
+body:not(.light-mode) .ngram-match-toggle.active {
     color: #0A0A0A;
-}
-
-.ngram-chart-container {
-    height: 350px;
-    position: relative;
+    box-shadow: 0 2px 8px rgba(255, 204, 0, 0.3);
 }
 
 /* =============================================
@@ -981,6 +1201,123 @@ body:not(.light-mode) .ngram-page-num.active {
 }
 
 /* =============================================
+   STOPWORD FILTER SECTION
+   ============================================= */
+.ngram-stopword-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+}
+
+.ngram-stopword-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ngram-stopword-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.ngram-stopword-hint {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+}
+
+.ngram-stopword-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.ngram-stopword-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.ngram-stopword-textarea {
+    width: 100%;
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.6;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.ngram-stopword-textarea:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.1);
+}
+
+body:not(.light-mode) .ngram-stopword-textarea:focus {
+    box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.1);
+}
+
+.ngram-stopword-count {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-align: right;
+}
+
+.ngram-settings-changed-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+    background: rgba(234, 179, 8, 0.1);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    border-radius: 10px;
+    font-size: 0.82rem;
+    color: #eab308;
+    font-weight: 500;
+}
+
+/* SW badge on tab when stopwords active */
+.ngram-tab-sw {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.3rem;
+    font-size: 0.6rem;
+    font-weight: 800;
+    border-radius: 4px;
+    margin-left: 0.3rem;
+    background: rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+}
+
+.ngram-tab-btn.active .ngram-tab-sw {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+body:not(.light-mode) .ngram-tab-btn.active .ngram-tab-sw {
+    background: rgba(0, 0, 0, 0.15);
+    color: #0A0A0A;
+}
+
+/* =============================================
    RESPONSIVE
    ============================================= */
 @media (max-width: 768px) {
@@ -994,8 +1331,22 @@ body:not(.light-mode) .ngram-page-num.active {
         max-width: 380px;
     }
 
+    .ngram-info-card {
+        flex-direction: column;
+    }
+
+    .ngram-info-divider {
+        width: 100%;
+        height: 1px;
+    }
+
     .ngram-summary-bar {
         grid-template-columns: 1fr 1fr;
+    }
+
+    .ngram-insights-global-grid,
+    .ngram-insights-tab-grid {
+        grid-template-columns: 1fr;
     }
 
     .ngram-tab-switcher {

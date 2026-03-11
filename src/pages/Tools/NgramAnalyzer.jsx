@@ -2,23 +2,12 @@ import React, { useState, useRef, useMemo, useCallback } from 'react';
 import {
     Upload, Download, X, AlertCircle, FileSpreadsheet,
     Search, BarChart3, Hash, DollarSign, ShoppingCart,
-    MousePointerClick, ChevronUp, ChevronDown, Eye, Trash2
+    TrendingUp, TrendingDown, AlertTriangle, Filter,
+    ChevronUp, ChevronDown, Eye, Trash2
 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { Bar } from 'react-chartjs-2';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-} from 'chart.js';
 import './NgramAnalyzer.css';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 // ======================================
 // HELPERS
@@ -58,12 +47,14 @@ function parseNum(val) {
 }
 
 // ======================================
+// ITALIAN STOPWORDS
+// ======================================
+const DEFAULT_STOPWORDS = 'di, il, la, le, gli, i, un, una, uno, da, del, della, delle, dei, degli, al, alla, alle, agli, nel, nella, a, con, per, su, tra, fra, e, o, è, che, in, si, non, lo, ne, ci, ma, se, ad, ed';
+
+// ======================================
 // COMPONENT
 // ======================================
 const NgramAnalyzer = () => {
-    // Settings
-    const [targetAcos, setTargetAcos] = useState(30);
-
     // File + Data
     const [file, setFile] = useState(null);
     const [isParsing, setIsParsing] = useState(false);
@@ -75,9 +66,14 @@ const NgramAnalyzer = () => {
     // N-gram results: { 1: [...], 2: [...], 3: [...], 4: [...] }
     const [ngramResults, setNgramResults] = useState(null);
 
+    // Stopwords
+    const [stopwordsEnabled, setStopwordsEnabled] = useState(false);
+    const [stopwordsRaw, setStopwordsRaw] = useState(DEFAULT_STOPWORDS);
+    const [settingsChanged, setSettingsChanged] = useState(false);
+
     // UI
     const [activeTab, setActiveTab] = useState(1);
-    const [chartMetric, setChartMetric] = useState('cost');
+    const [exactMatch, setExactMatch] = useState(false);
     const [globalSearch, setGlobalSearch] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'cost', direction: 'desc' });
     const [currentPage, setCurrentPage] = useState(1);
@@ -163,9 +159,21 @@ const NgramAnalyzer = () => {
     // ======================================
     // RUN ANALYSIS
     // ======================================
+    const stopwordsSet = useMemo(() => {
+        return new Set(
+            stopwordsRaw.split(',').map(w => w.trim().toLowerCase()).filter(Boolean)
+        );
+    }, [stopwordsRaw]);
+
     const runAnalysis = useCallback(() => {
         setIsParsing(true);
         setError('');
+        setSettingsChanged(false);
+
+        // snapshot stopwords at run time so closure is stable
+        const activeStopwords = stopwordsEnabled
+            ? new Set(stopwordsRaw.split(',').map(w => w.trim().toLowerCase()).filter(Boolean))
+            : null;
 
         // Use setTimeout to allow the spinner to render
         setTimeout(() => {
@@ -204,7 +212,12 @@ const NgramAnalyzer = () => {
 
             for (const fullTerm of uniqueTerms) {
                 const stats = termMap[fullTerm];
-                const words = fullTerm.split(/\s+/).filter(Boolean);
+                let words = fullTerm.split(/\s+/).filter(Boolean);
+                // Strip stopwords before n-gram generation if enabled
+                if (activeStopwords) {
+                    words = words.filter(w => !activeStopwords.has(w));
+                }
+                if (words.length === 0) continue;
 
                 for (let n = 1; n <= 4; n++) {
                     if (words.length < n) continue;
@@ -252,7 +265,7 @@ const NgramAnalyzer = () => {
             setGlobalSearch('');
             setIsParsing(false);
         }, 50);
-    }, [rawRows, selectedAsin]);
+    }, [rawRows, selectedAsin, stopwordsEnabled, stopwordsRaw]);
 
     // ======================================
     // SUMMARY STATS
@@ -285,6 +298,45 @@ const NgramAnalyzer = () => {
     }, [ngramResults, rawRows, selectedAsin]);
 
     // ======================================
+    // GLOBAL INSIGHTS (computed from raw rows)
+    // ======================================
+    const globalInsights = useMemo(() => {
+        if (!ngramResults) return null;
+        const termMap = {};
+        for (const row of rawRows) {
+            if (selectedAsin !== '__ALL__' && String(row['Advertised product ID'] || '').trim() !== selectedAsin) continue;
+            const term = String(row['Search term'] || '').trim().toLowerCase();
+            if (!term) continue;
+            if (!termMap[term]) termMap[term] = { orders: 0, cost: 0 };
+            termMap[term].orders += parseNum(row['Purchases']);
+            termMap[term].cost += parseNum(row['Total cost']);
+        }
+        let convertingSpend = 0, nonConvertingSpend = 0, convertingCount = 0, nonConvertingCount = 0;
+        for (const d of Object.values(termMap)) {
+            if (d.orders > 0) { convertingSpend += d.cost; convertingCount++; }
+            else { nonConvertingSpend += d.cost; nonConvertingCount++; }
+        }
+        const total = convertingSpend + nonConvertingSpend;
+        return {
+            convertingSpend, nonConvertingSpend, convertingCount, nonConvertingCount,
+            convertingPct: total > 0 ? (convertingSpend / total) * 100 : 0,
+            nonConvertingPct: total > 0 ? (nonConvertingSpend / total) * 100 : 0,
+        };
+    }, [ngramResults, rawRows, selectedAsin]);
+
+    // ======================================
+    // TAB INSIGHTS (computed from active tab n-grams)
+    // ======================================
+    const tabInsights = useMemo(() => {
+        if (!ngramResults || !ngramResults[activeTab]) return { topConverting: [], topNegatives: [] };
+        const data = ngramResults[activeTab];
+        return {
+            topConverting: data.filter(d => d.orders > 0).sort((a, b) => b.sales - a.sales).slice(0, 7),
+            topNegatives: data.filter(d => d.cost > 0 && d.orders === 0).sort((a, b) => b.cost - a.cost).slice(0, 7),
+        };
+    }, [ngramResults, activeTab]);
+
+    // ======================================
     // SORTED + FILTERED DATA FOR ACTIVE TAB
     // ======================================
     const processedData = useMemo(() => {
@@ -294,7 +346,11 @@ const NgramAnalyzer = () => {
         // Global search
         if (globalSearch.trim()) {
             const q = globalSearch.trim().toLowerCase();
-            data = data.filter(d => d.phrase.includes(q));
+            if (exactMatch) {
+                data = data.filter(d => d.phrase === q);
+            } else {
+                data = data.filter(d => d.phrase.includes(q));
+            }
         }
 
         // Sort
@@ -315,71 +371,6 @@ const NgramAnalyzer = () => {
     // Pagination
     const totalPages = Math.ceil(processedData.length / itemsPerPage);
     const paginatedData = processedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-    // ======================================
-    // CHART DATA
-    // ======================================
-    const chartData = useMemo(() => {
-        if (!ngramResults || !ngramResults[activeTab]) return null;
-
-        const sorted = [...ngramResults[activeTab]].sort((a, b) => b[chartMetric] - a[chartMetric]);
-        const top15 = sorted.slice(0, 15);
-
-        const metricLabels = { cost: 'Spend', sales: 'Sales', impressions: 'Impressions', acos: 'ACOS' };
-        const isCurrency = chartMetric === 'cost' || chartMetric === 'sales';
-        const isPercent = chartMetric === 'acos';
-
-        const isDark = !document.body.classList.contains('light-mode');
-        const barColor = isDark ? 'rgba(255, 204, 0, 0.8)' : 'rgba(229, 9, 20, 0.8)';
-        const barBorder = isDark ? 'rgba(255, 204, 0, 1)' : 'rgba(229, 9, 20, 1)';
-
-        return {
-            labels: top15.map(d => d.phrase.length > 25 ? d.phrase.slice(0, 22) + '...' : d.phrase),
-            datasets: [{
-                label: metricLabels[chartMetric] || chartMetric,
-                data: top15.map(d => isPercent ? d[chartMetric] * 100 : d[chartMetric]),
-                backgroundColor: barColor,
-                borderColor: barBorder,
-                borderWidth: 1,
-                borderRadius: 4,
-            }],
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => {
-                                const val = ctx.raw;
-                                if (isPercent) return val.toFixed(2) + '%';
-                                if (isCurrency) return '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                return val.toLocaleString();
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: {
-                            color: isDark ? '#A0A0A0' : '#555555',
-                            callback: (val) => {
-                                if (isPercent) return val + '%';
-                                if (isCurrency) return '$' + val.toLocaleString();
-                                return val.toLocaleString();
-                            }
-                        },
-                        grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }
-                    },
-                    y: {
-                        ticks: { color: isDark ? '#A0A0A0' : '#555555', font: { size: 11 } },
-                        grid: { display: false }
-                    }
-                }
-            }
-        };
-    }, [ngramResults, activeTab, chartMetric]);
 
     // ======================================
     // SORT HANDLER
@@ -440,6 +431,10 @@ const NgramAnalyzer = () => {
         setNgramResults(null);
         setError('');
         setGlobalSearch('');
+        setExactMatch(false);
+        setSettingsChanged(false);
+        setStopwordsEnabled(false);
+        setStopwordsRaw(DEFAULT_STOPWORDS);
         setCurrentPage(1);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -455,9 +450,8 @@ const NgramAnalyzer = () => {
             return <span className="ngram-badge no-sales">No Sales</span>;
         }
         const acosPct = row.acos * 100;
-        const target = targetAcos;
-        if (acosPct <= target * 0.8) return <span className="ngram-badge acos-good">Good</span>;
-        if (acosPct <= target * 1.2) return <span className="ngram-badge acos-warn">Near Target</span>;
+        if (acosPct <= 24) return <span className="ngram-badge acos-good">Good</span>;
+        if (acosPct <= 36) return <span className="ngram-badge acos-warn">Near Target</span>;
         return <span className="ngram-badge acos-bad">High ACOS</span>;
     };
 
@@ -520,55 +514,29 @@ const NgramAnalyzer = () => {
                     Discover the hidden word patterns driving your Amazon PPC spend, sales, and conversions.
                 </p>
 
-                {/* Instruction Cards */}
-                <div className="ngram-instruction-cards">
-                    <div className="ngram-instruction-card">
-                        <div className="card-front">
-                            <Upload size={32} className="bounce-icon" />
-                            <h3>1. Upload Data</h3>
-                            <p className="text-muted" style={{ fontSize: '0.9rem' }}>Upload your Search Term Report</p>
-                        </div>
-                        <div className="card-back">
-                            <strong style={{ marginBottom: '0.75rem', display: 'block' }}>Upload Instructions</strong>
-                            <ol>
-                                <li>Export your <strong>Search Term Report</strong> from Amazon Ads Console</li>
-                                <li>Supports <strong>CSV</strong> and <strong>Excel</strong> formats</li>
-                                <li>Required columns: Search term, Impressions, Clicks, Purchases, Sales, Cost, Units</li>
-                                <li>Optionally includes <strong>Advertised Product ID</strong> for ASIN filtering</li>
-                            </ol>
-                        </div>
+                {/* Info Card */}
+                <div className="ngram-info-card">
+                    <div className="ngram-info-col">
+                        <h4>What This Tool Does</h4>
+                        <p>Breaks down your Amazon search terms into 1, 2, 3 and 4-word patterns to reveal which words and phrases are driving spend, sales, and conversions — and which are wasting budget.</p>
+                        <ul>
+                            <li>Extracts n-gram patterns from your Search Term Report</li>
+                            <li>Aggregates spend, sales, CTR, CPC, CVR &amp; ACOS per pattern</li>
+                            <li>Surfaces top converting intent and negative keyword candidates</li>
+                            <li>Italian stopword filter removes noise words before analysis</li>
+                        </ul>
                     </div>
-                    <div className="ngram-instruction-card">
-                        <div className="card-front">
-                            <BarChart3 size={32} className="bounce-icon" />
-                            <h3>2. Configure & Analyze</h3>
-                            <p className="text-muted" style={{ fontSize: '0.9rem' }}>Set ACOS target & pick ASIN</p>
-                        </div>
-                        <div className="card-back">
-                            <strong style={{ marginBottom: '0.75rem', display: 'block' }}>Analysis Features</strong>
-                            <ul>
-                                <li><strong>Child Mode:</strong> Analyze one specific ASIN</li>
-                                <li><strong>Brand Mode:</strong> Analyze all ASINs at once</li>
-                                <li>Extracts <strong>1, 2, 3, 4-word</strong> patterns from search terms</li>
-                                <li>Aggregates spend, sales, CTR, CPC, CVR & ACOS per pattern</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="ngram-instruction-card">
-                        <div className="card-front">
-                            <Download size={32} className="bounce-icon" />
-                            <h3>3. Export Results</h3>
-                            <p className="text-muted" style={{ fontSize: '0.9rem' }}>Download analysis as Excel</p>
-                        </div>
-                        <div className="card-back">
-                            <strong style={{ marginBottom: '0.75rem', display: 'block' }}>Export Details</strong>
-                            <ul>
-                                <li>Download a <strong>multi-sheet Excel</strong> file (one sheet per n-gram size)</li>
-                                <li>All metrics included: Freq, Impressions, Clicks, Spend, Sales, Orders, Units, CTR, CPC, CVR, ACOS</li>
-                                <li><strong>Negative keyword candidates</strong> flagged with badges</li>
-                                <li>Charts help identify top spend/sales patterns at a glance</li>
-                            </ul>
-                        </div>
+                    <div className="ngram-info-divider" />
+                    <div className="ngram-info-col">
+                        <h4>How To Use</h4>
+                        <ol>
+                            <li>Export your <strong>Search Term Report</strong> from Amazon Ads Console</li>
+                            <li>Upload the CSV or Excel file below</li>
+                            <li>Optionally filter by ASIN or enable the stopword filter</li>
+                            <li>Click <strong>Run N-Gram Analysis</strong></li>
+                            <li>Review the Insights panel and results table</li>
+                            <li>Export results as a multi-sheet Excel file</li>
+                        </ol>
                     </div>
                 </div>
             </div>
@@ -576,44 +544,73 @@ const NgramAnalyzer = () => {
             {/* Steps */}
             <div className="ngram-card-container">
 
-                {/* Step 1: Settings */}
-                <div className="ngram-step-card">
-                    <div className="ngram-step-header">
-                        <div className="ngram-step-number">1</div>
-                        <div>
-                            <h2>Settings</h2>
-                            <p className="text-muted">Set your target ACOS for performance badges</p>
-                        </div>
-                    </div>
-                    <div className="ngram-step-content">
-                        <div className="ngram-settings-grid">
-                            <div className="ngram-form-group">
-                                <label>Target ACOS (%)</label>
-                                <input
-                                    type="number"
-                                    className="ngram-input"
-                                    value={targetAcos}
-                                    onChange={(e) => setTargetAcos(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
-                                    min="1"
-                                    max="200"
-                                />
+                {/* Step 1: Settings — always visible once a file is loaded */}
+                {file && (
+                    <div className="ngram-step-card">
+                        <div className="ngram-step-header">
+                            <div className="ngram-step-number">1</div>
+                            <div>
+                                <h2>Settings</h2>
+                                <p className="text-muted">Filter by ASIN and configure stopword removal</p>
                             </div>
+                        </div>
+                        <div className="ngram-step-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
                             {allAsins.length > 0 && (
                                 <div className="ngram-form-group">
                                     <label>ASIN Filter</label>
                                     <select
                                         className="ngram-select"
                                         value={selectedAsin}
-                                        onChange={(e) => setSelectedAsin(e.target.value)}
+                                        onChange={(e) => { setSelectedAsin(e.target.value); if (ngramResults) setSettingsChanged(true); }}
                                     >
                                         <option value="__ALL__">All ASINs (Brand Mode) — {allAsins.length} ASINs</option>
                                         {allAsins.map(a => <option key={a} value={a}>{a}</option>)}
                                     </select>
                                 </div>
                             )}
+
+                            {/* Stopword Filter */}
+                            <div className="ngram-stopword-section">
+                                <div className="ngram-stopword-header">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                        <Filter size={15} color="var(--color-text-muted)" />
+                                        <span className="ngram-stopword-title">Italian Stopword Filter</span>
+                                        <span className="ngram-stopword-hint">strips common words before n-gram generation</span>
+                                    </div>
+                                    <button
+                                        className={`ngram-match-toggle ${stopwordsEnabled ? 'active' : ''}`}
+                                        style={{ fontSize: '0.72rem', padding: '0.4rem 0.85rem' }}
+                                        onClick={() => { setStopwordsEnabled(p => !p); if (ngramResults) setSettingsChanged(true); }}
+                                    >
+                                        {stopwordsEnabled ? 'On' : 'Off'}
+                                    </button>
+                                </div>
+                                {stopwordsEnabled && (
+                                    <div className="ngram-stopword-editor">
+                                        <label className="ngram-stopword-label">Stopword list — comma-separated, editable</label>
+                                        <textarea
+                                            className="ngram-stopword-textarea"
+                                            value={stopwordsRaw}
+                                            onChange={(e) => { setStopwordsRaw(e.target.value); if (ngramResults) setSettingsChanged(true); }}
+                                            rows={3}
+                                            spellCheck={false}
+                                        />
+                                        <div className="ngram-stopword-count">
+                                            {stopwordsSet.size} words in list
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {settingsChanged && ngramResults && (
+                                <div className="ngram-settings-changed-banner">
+                                    <AlertCircle size={15} />
+                                    Settings changed — re-run analysis to apply
+                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Step 2: Upload */}
                 <div className="ngram-step-card">
@@ -718,37 +715,100 @@ const NgramAnalyzer = () => {
                                     key={n}
                                     className={`ngram-tab-btn ${activeTab === n ? 'active' : ''}`}
                                     onClick={() => { setActiveTab(n); setCurrentPage(1); setGlobalSearch(''); }}
+                                    title={stopwordsEnabled ? `${n}-word patterns (stopwords removed)` : `${n}-word patterns`}
                                 >
-                                    {n}-Word
+                                    {n}-Word{stopwordsEnabled ? <span className="ngram-tab-sw">stopwords</span> : ''}
                                     <span className="ngram-tab-count">{(ngramResults[n] || []).length}</span>
                                 </button>
                             ))}
                         </div>
 
-                        {/* Chart */}
-                        {chartData && chartData.labels.length > 0 && (
-                            <div className="ngram-chart-section">
-                                <div className="ngram-chart-header">
-                                    <h3>Top 15 — {activeTab}-Word Patterns</h3>
-                                    <div className="ngram-chart-metric-switcher">
-                                        {[
-                                            { key: 'cost', label: 'Spend' },
-                                            { key: 'sales', label: 'Sales' },
-                                            { key: 'impressions', label: 'Impressions' },
-                                            { key: 'acos', label: 'ACOS' },
-                                        ].map(m => (
-                                            <button
-                                                key={m.key}
-                                                className={`ngram-chart-metric-btn ${chartMetric === m.key ? 'active' : ''}`}
-                                                onClick={() => setChartMetric(m.key)}
-                                            >
-                                                {m.label}
-                                            </button>
-                                        ))}
+                        {/* Insights Panel */}
+                        {globalInsights && (
+                            <div className="ngram-insights-panel">
+                                {/* Section A: Global Campaign Overview */}
+                                <div className="ngram-insights-section-label">
+                                    <span>Campaign Overview</span>
+                                    <span className="ngram-insights-tag">Global</span>
+                                </div>
+                                <div className="ngram-insights-global-grid">
+                                    <div className="ngram-insight-card spend-split-card">
+                                        <div className="ngram-insight-card-title">
+                                            <DollarSign size={13} /> Spend Split
+                                        </div>
+                                        <div className="ngram-spend-track">
+                                            <div className="ngram-spend-fill converting" style={{ width: `${globalInsights.convertingPct}%` }} />
+                                            <div className="ngram-spend-fill non-converting" style={{ width: `${globalInsights.nonConvertingPct}%` }} />
+                                        </div>
+                                        <div className="ngram-spend-legend">
+                                            <div className="ngram-spend-legend-item">
+                                                <span className="ngram-legend-dot converting" />
+                                                <span>Converting</span>
+                                                <strong>{fmtCur(globalInsights.convertingSpend)}</strong>
+                                                <span className="ngram-legend-pct">{globalInsights.convertingPct.toFixed(1)}%</span>
+                                            </div>
+                                            <div className="ngram-spend-legend-item">
+                                                <span className="ngram-legend-dot non-converting" />
+                                                <span>Non-converting</span>
+                                                <strong>{fmtCur(globalInsights.nonConvertingSpend)}</strong>
+                                                <span className="ngram-legend-pct">{globalInsights.nonConvertingPct.toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="ngram-insight-card">
+                                        <div className="ngram-insight-card-title">
+                                            <AlertTriangle size={13} /> Wasted Spend
+                                        </div>
+                                        <div className="ngram-insight-big-num">{fmtCur(globalInsights.nonConvertingSpend)}</div>
+                                        <div className="ngram-insight-sub">{globalInsights.nonConvertingCount.toLocaleString()} search terms with zero conversions</div>
+                                        <div className="ngram-insight-sub" style={{ marginTop: '0.35rem' }}>{globalInsights.convertingCount.toLocaleString()} converting search terms</div>
                                     </div>
                                 </div>
-                                <div className="ngram-chart-container">
-                                    <Bar data={chartData} options={chartData.options} />
+
+                                {/* Section B: Per-tab */}
+                                <div className="ngram-insights-section-label" style={{ marginTop: '1.75rem' }}>
+                                    <span>{activeTab}-Word Patterns</span>
+                                    <span className="ngram-insights-tag tab">Per Tab</span>
+                                </div>
+                                <div className="ngram-insights-tab-grid">
+                                    <div className="ngram-insight-card">
+                                        <div className="ngram-insight-card-title converting">
+                                            <TrendingUp size={13} /> Top Converting Intent
+                                        </div>
+                                        {tabInsights.topConverting.length === 0 ? (
+                                            <p className="ngram-insight-empty">No converting patterns in this tab.</p>
+                                        ) : (
+                                            <div className="ngram-insight-list">
+                                                {tabInsights.topConverting.map((row, i) => (
+                                                    <div key={row.phrase} className="ngram-insight-row">
+                                                        <span className="ngram-insight-rank">#{i + 1}</span>
+                                                        <span className="ngram-insight-phrase" title={row.phrase}>{row.phrase}</span>
+                                                        <span className="ngram-insight-revenue">{fmtCur(row.sales)}</span>
+                                                        <span className="ngram-insight-orders">{row.orders} orders</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="ngram-insight-card">
+                                        <div className="ngram-insight-card-title negative">
+                                            <TrendingDown size={13} /> Negative Candidates
+                                        </div>
+                                        {tabInsights.topNegatives.length === 0 ? (
+                                            <p className="ngram-insight-empty">No negative candidates in this tab.</p>
+                                        ) : (
+                                            <div className="ngram-insight-list">
+                                                {tabInsights.topNegatives.map((row, i) => (
+                                                    <div key={row.phrase} className="ngram-insight-row">
+                                                        <span className="ngram-insight-rank">#{i + 1}</span>
+                                                        <span className="ngram-insight-phrase" title={row.phrase}>{row.phrase}</span>
+                                                        <span className="ngram-insight-spend">{fmtCur(row.cost)}</span>
+                                                        <span className="ngram-insight-zero">0 orders</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -771,6 +831,13 @@ const NgramAnalyzer = () => {
                                             onChange={(e) => { setGlobalSearch(e.target.value); setCurrentPage(1); }}
                                         />
                                     </div>
+                                    <button
+                                        className={`ngram-match-toggle ${exactMatch ? 'active' : ''}`}
+                                        onClick={() => { setExactMatch(prev => !prev); setCurrentPage(1); }}
+                                        title={exactMatch ? 'Exact match active — showing only exact phrase matches' : 'Click to enable exact match'}
+                                    >
+                                        Exact match
+                                    </button>
                                     <button className="ngram-export-btn" onClick={handleExport}>
                                         <Download size={16} /> Export Excel
                                     </button>
