@@ -8,14 +8,19 @@ const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const overlayVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.25 } },
+    visible: { opacity: 1, transition: { duration: 0.3 } },
     exit:   { opacity: 0, transition: { duration: 0.2 } },
 };
 
 const cardVariants = {
-    hidden:  { opacity: 0, scale: 0.93, y: 30 },
-    visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
-    exit:    { opacity: 0, scale: 0.95, y: 20, transition: { duration: 0.2, ease: 'easeIn' } },
+    hidden:  { opacity: 0, scale: 0.9, y: 40 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+    exit:    { opacity: 0, scale: 0.94, y: 20, transition: { duration: 0.22, ease: 'easeIn' } },
+};
+
+const fieldVariants = {
+    hidden:  { opacity: 0, y: 12 },
+    visible: (i) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.3, ease: 'easeOut' } }),
 };
 
 const termsCardVariants = {
@@ -105,7 +110,7 @@ const RegistrationModal = ({ isOpen, onClose, onSuccess, toolSlug = 'tool-popup'
 
                         {/* Icon */}
                         <div className="reg-modal-icon-ring">
-                            <Lock size={22} color="var(--color-primary, #6c63ff)" />
+                            <Lock size={24} />
                         </div>
 
                         {/* Headlines */}
@@ -118,7 +123,8 @@ const RegistrationModal = ({ isOpen, onClose, onSuccess, toolSlug = 'tool-popup'
                         <form className="reg-modal-form" onSubmit={handleSubmit} noValidate>
 
                             {/* Name row */}
-                            <div className="reg-name-row">
+                            <motion.div className="reg-name-row"
+                                custom={0} variants={fieldVariants} initial="hidden" animate="visible">
                                 <div className="reg-input-wrapper">
                                     <User className="reg-input-icon" size={16} />
                                     <input
@@ -142,10 +148,11 @@ const RegistrationModal = ({ isOpen, onClose, onSuccess, toolSlug = 'tool-popup'
                                         disabled={isLoading}
                                     />
                                 </div>
-                            </div>
+                            </motion.div>
 
                             {/* Email */}
-                            <div className="reg-input-wrapper">
+                            <motion.div className="reg-input-wrapper"
+                                custom={1} variants={fieldVariants} initial="hidden" animate="visible">
                                 <Mail className="reg-input-icon" size={16} />
                                 <input
                                     type="email"
@@ -156,10 +163,11 @@ const RegistrationModal = ({ isOpen, onClose, onSuccess, toolSlug = 'tool-popup'
                                     disabled={isLoading}
                                     autoComplete="email"
                                 />
-                            </div>
+                            </motion.div>
 
                             {/* Terms checkbox */}
-                            <div className="reg-checkbox-wrapper">
+                            <motion.div className="reg-checkbox-wrapper"
+                                custom={2} variants={fieldVariants} initial="hidden" animate="visible">
                                 <label className="reg-checkbox-label">
                                     <input
                                         type="checkbox"
@@ -177,7 +185,7 @@ const RegistrationModal = ({ isOpen, onClose, onSuccess, toolSlug = 'tool-popup'
                                         Terms and Conditions
                                     </button>
                                 </label>
-                            </div>
+                            </motion.div>
 
                             {/* Error */}
                             <AnimatePresence>
