@@ -19,7 +19,7 @@ const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
  *   markTempAllow()      — grants 24 h grace (called when modal is dismissed)
  */
 
-const checkAccess = () => {
+export const checkAccess = () => {
     try {
         const expiry = localStorage.getItem(ACCESS_KEY);
         if (expiry && Date.now() < parseInt(expiry, 10)) return true;
@@ -27,7 +27,7 @@ const checkAccess = () => {
     return false;
 };
 
-const grantAccess = () => {
+export const grantAccess = () => {
     try {
         localStorage.setItem(ACCESS_KEY, (Date.now() + TWENTY_FOUR_HOURS).toString());
     } catch { /* fail silently */ }

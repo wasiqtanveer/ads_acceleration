@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { grantAccess } from '../../context/useRegistration';
 
 // A simple tool to check if the email actually looks like an email (e.g., has an @ and a .)
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -66,6 +67,7 @@ const useLeadForm = (toolSlug = 'free-tool') => {
 
             // Because of no-cors, we get an opaque response back (we can't read the JSON).
             // As long as the fetch didn't throw a network error, we assume it reached the endpoint.
+            grantAccess(); // stamp 24h access window so tools don't re-prompt
             return { status: 'success' };
         } catch (error) {
             console.error("Error submitting to Google Sheets:", error);

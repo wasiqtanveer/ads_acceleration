@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
+import { checkAccess } from '../../context/useRegistration';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Rocket, Mail, User, ArrowRight, CheckCircle, ShieldCheck, AlertCircle, X, PhoneCall } from 'lucide-react';
 import useLeadForm from './useLeadForm';
@@ -62,6 +63,8 @@ const LeadCapturePage = () => {
     const { toolSlug } = useParams();
     const tool = TOOL_REGISTRY[toolSlug] || DEFAULT_TOOL;
 
+    const alreadyHasAccess = checkAccess();
+
     // Form hook states
     const {
         firstName, setFirstName,
@@ -90,7 +93,39 @@ const LeadCapturePage = () => {
             {/* Main content */}
             <main className="lead-main">
                 <AnimatePresence mode="wait">
-                    {!isSuccess ? (
+                    {alreadyHasAccess ? (
+                        /* ── ALREADY REGISTERED STATE ── */
+                        <motion.div
+                            key="already-registered"
+                            className="lead-card"
+                            variants={cardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                        >
+                            <motion.div
+                                className="lead-success"
+                                variants={successVariants}
+                                initial="hidden"
+                                animate="visible"
+                            >
+                                <div className="success-icon-ring">
+                                    <CheckCircle size={40} />
+                                </div>
+                                <h2>You already have access!</h2>
+                                <p>Your 24-hour access window is still active — head straight to the tool.</p>
+                                {tool.toolUrl ? (
+                                    <Link to={tool.toolUrl} className="lead-success-btn">
+                                        Go to the Tool <ArrowRight size={16} />
+                                    </Link>
+                                ) : (
+                                    <Link to="/tools" className="lead-success-btn">
+                                        Browse Tools <ArrowRight size={16} />
+                                    </Link>
+                                )}
+                            </motion.div>
+                        </motion.div>
+                    ) : !isSuccess ? (
                         /* ── FORM STATE ── */
                         <motion.div
                             key="form"
