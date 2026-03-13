@@ -30,6 +30,10 @@ body:not(.light-mode) .gf-page::before {
     margin-bottom: 2.5rem;
     position: relative;
     z-index: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .gf-icon-ring {

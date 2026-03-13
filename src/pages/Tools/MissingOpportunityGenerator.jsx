@@ -1432,7 +1432,7 @@ const MissingOpportunityGenerator = () => {
                         </button>
                         {candidatesSelectedCount > 0 && (
                             <p className="text-muted gf-generate-note">
-                                Will create graduated keywords based on selected ad groups.
+                                Will create graduated keywords for {candidatesSelectedCount} selected search term(s).
                             </p>
                         )}
                     </div>
