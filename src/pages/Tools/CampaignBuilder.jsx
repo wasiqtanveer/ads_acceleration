@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import './BiddingOptimizer.css'; // Inheriting structural layout
 import './CampaignBuilder.css'; // Tool-specific additions
 import RegistrationModal from '../../components/ui/RegistrationModal';
+import ConsultationCard from '../../components/ui/ConsultationCard';
 import useRegistration from '../../context/useRegistration';
 
 // Reusable tooltip component for consistent help icons
@@ -102,6 +103,7 @@ const buildCampaignCore = (name, date, targeting, budget, strategy, bid, agName,
     const rows = [];
     rows.push(mkRow({
         Product: 'Sponsored Products', Entity: 'Campaign', Operation: 'Create',
+        'Campaign Id': name,
         'Campaign Name': name, 'Start Date': date,
         'Targeting Type': targeting, State: 'enabled',
         'Daily Budget': budget, 'Bidding Strategy': strategy,
@@ -112,16 +114,19 @@ const buildCampaignCore = (name, date, targeting, budget, strategy, bid, agName,
     ].forEach(([p, v]) => {
         rows.push(mkRow({
             Product: 'Sponsored Products', Entity: 'Bidding Adjustment', Operation: 'Create',
+            'Campaign Id': name,
             'Campaign Name': name, Placement: p, Percentage: v,
         }));
     });
     rows.push(mkRow({
         Product: 'Sponsored Products', Entity: 'Ad Group', Operation: 'Create',
+        'Campaign Id': name, 'Ad Group Id': agName,
         'Campaign Name': name, 'Ad Group Name': agName,
         'Ad Group Default Bid': bid, State: 'enabled',
     }));
     rows.push(mkRow({
         Product: 'Sponsored Products', Entity: 'Product Ad', Operation: 'Create',
+        'Campaign Id': name, 'Ad Group Id': agName,
         'Campaign Name': name, 'Ad Group Name': agName,
         SKU: sku, State: 'enabled',
     }));
@@ -132,6 +137,7 @@ const addNegatives = (rows, name, agName, negExact, negPhrase) => {
     negExact.forEach(nk => {
         rows.push(mkRow({
             Product: 'Sponsored Products', Entity: 'Negative Keyword', Operation: 'Create',
+            'Campaign Id': name, 'Ad Group Id': agName,
             'Campaign Name': name, 'Ad Group Name': agName,
             'Keyword Text': nk, 'Match Type': 'negativeExact', State: 'enabled',
         }));
@@ -139,6 +145,7 @@ const addNegatives = (rows, name, agName, negExact, negPhrase) => {
     negPhrase.forEach(nk => {
         rows.push(mkRow({
             Product: 'Sponsored Products', Entity: 'Negative Keyword', Operation: 'Create',
+            'Campaign Id': name, 'Ad Group Id': agName,
             'Campaign Name': name, 'Ad Group Name': agName,
             'Keyword Text': nk, 'Match Type': 'negativePhrase', State: 'enabled',
         }));
@@ -302,6 +309,7 @@ const CampaignBuilder = () => {
                         allAT.forEach(at => {
                             rows.push(mkRow({
                                 Product: 'Sponsored Products', Entity: 'Product Targeting', Operation: 'Create',
+                                'Campaign Id': name, 'Ad Group Id': agName,
                                 'Campaign Name': name, 'Ad Group Name': agName,
                                 State: enabled.includes(at) ? 'enabled' : 'paused',
                                 'Product Targeting Expression': AUTO_TARGET_MAP[at], Bid: cfg.startingBid,
@@ -311,6 +319,7 @@ const CampaignBuilder = () => {
                         kws.forEach(asin => {
                             rows.push(mkRow({
                                 Product: 'Sponsored Products', Entity: 'Product Targeting', Operation: 'Create',
+                                'Campaign Id': name, 'Ad Group Id': agName,
                                 'Campaign Name': name, 'Ad Group Name': agName,
                                 'Product Targeting Expression': `asin="${asin}"`, Bid: cfg.startingBid, State: 'enabled',
                             }));
@@ -320,6 +329,7 @@ const CampaignBuilder = () => {
                         kws.forEach(kw => {
                             rows.push(mkRow({
                                 Product: 'Sponsored Products', Entity: 'Keyword', Operation: 'Create',
+                                'Campaign Id': name, 'Ad Group Id': agName,
                                 'Campaign Name': name, 'Ad Group Name': agName,
                                 'Keyword Text': isBMM ? toBMM(kw) : kw,
                                 'Match Type': mt, Bid: cfg.startingBid, State: 'enabled',
@@ -341,6 +351,7 @@ const CampaignBuilder = () => {
                                 rows.push(mkRow({
                                     Product: 'Sponsored Products',
                                     Entity: 'Campaign Negative Keyword', Operation: 'Create',
+                                    'Campaign Id': name,
                                     'Campaign Name': name,
                                     'Keyword Text': kw, 'Match Type': 'negativeExact', State: 'enabled',
                                 }));
@@ -395,6 +406,7 @@ const CampaignBuilder = () => {
                     // Single keyword row
                     rows.push(mkRow({
                         Product: 'Sponsored Products', Entity: 'Keyword', Operation: 'Create',
+                        'Campaign Id': name, 'Ad Group Id': agName,
                         'Campaign Name': name, 'Ad Group Name': agName,
                         'Keyword Text': text, 'Match Type': mt,
                         Bid: group.startingBid, State: 'enabled',
@@ -408,6 +420,7 @@ const CampaignBuilder = () => {
                         rows.push(mkRow({
                             Product: 'Sponsored Products',
                             Entity: 'Campaign Negative Keyword', Operation: 'Create',
+                            'Campaign Id': name,
                             'Campaign Name': name,
                             'Keyword Text': keyword, 'Match Type': 'negativeExact', State: 'enabled',
                         }));
@@ -1316,6 +1329,8 @@ const CampaignBuilder = () => {
                     <div key={mode} className="cb-tab-panel">
                         {mode === 'standard' ? renderStandardCampaign() : renderRankCampaign()}
                     </div>
+
+                    <ConsultationCard />
 
                 </div>
             </div>

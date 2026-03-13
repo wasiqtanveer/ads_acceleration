@@ -1,0 +1,247 @@
+/* =============================================
+   CONSULTATION CARD — Premium CTA
+   Matches the overall tool page aesthetic
+   ============================================= */
+
+.consultation-card-wrapper {
+    position: relative;
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    margin: 3rem auto 1rem;
+    width: 100%;
+    /* Let the main container define the max-width, or just stretch inline */
+    overflow: hidden;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Hover lift */
+.consultation-card-wrapper:hover {
+    border-color: rgba(255, 204, 0, 0.35);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 204, 0, 0.12);
+}
+
+body.light-mode .consultation-card-wrapper:hover {
+    border-color: rgba(229, 9, 20, 0.3);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(229, 9, 20, 0.1);
+}
+
+/* Ambient glowing orb in the background */
+.consultation-card-wrapper::before {
+    content: '';
+    position: absolute;
+    bottom: -80px;
+    right: -80px;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 204, 0, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.3s ease;
+}
+
+body.light-mode .consultation-card-wrapper::before {
+    background: radial-gradient(circle, rgba(229, 9, 20, 0.08) 0%, transparent 70%);
+}
+
+.consultation-card-wrapper:hover::before {
+    opacity: 1.5;
+}
+
+/* Left accent line */
+.consultation-card-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--color-primary) 0%, transparent 100%);
+    z-index: 1;
+}
+
+/* ─── Top Bar ─────────────────────────────────── */
+.consultation-card-topbar {
+    background: rgba(255, 204, 0, 0.06);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.9rem 2rem 0.9rem 2.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--color-text-muted);
+    position: relative;
+    z-index: 2;
+}
+
+body.light-mode .consultation-card-topbar {
+    background: rgba(229, 9, 20, 0.04);
+}
+
+.topbar-icon {
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.consultation-card-topbar .topbar-badge {
+    margin-left: auto;
+    padding: 0.2rem 0.65rem;
+    background: rgba(255, 204, 0, 0.12);
+    color: var(--color-primary);
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+body.light-mode .consultation-card-topbar .topbar-badge {
+    background: rgba(229, 9, 20, 0.1);
+}
+
+/* ─── Main Content ────────────────────────────── */
+.consultation-card-content {
+    padding: 3.5rem 3rem 3rem;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+
+.consultation-heading {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-text);
+    line-height: 1.25;
+    margin: 0 auto 1rem;
+    max-width: 560px;
+    letter-spacing: -0.02em;
+}
+
+/* Gradient highlight on the last word or key phrase */
+.consultation-heading-accent {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.consultation-subtext {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    margin: 0 auto 2.5rem;
+    max-width: 440px;
+    line-height: 1.65;
+}
+
+/* ─── Divider dots ────────────────────────────── */
+.consultation-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.consultation-divider span {
+    display: block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--color-border);
+}
+
+.consultation-divider span:nth-child(2) {
+    background: var(--color-primary);
+    width: 20px;
+    border-radius: 100px;
+}
+
+/* ─── Action Buttons ──────────────────────────── */
+.consultation-actions {
+    display: flex;
+    gap: 1.25rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* Primary CTA button */
+.consultation-actions .btn-primary {
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    letter-spacing: 1.5px;
+    padding: 0.9rem 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Shimmer effect on primary button */
+.consultation-actions .btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    transition: left 0.7s ease;
+    pointer-events: none;
+}
+
+.consultation-actions .btn-primary:hover::after {
+    left: 150%;
+}
+
+/* Outline / secondary button */
+.consultation-actions .btn-outline {
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    padding: 0.9rem 1.75rem;
+    border-radius: 50px;
+    border-color: var(--color-border);
+    transition: all 0.3s ease;
+}
+
+.consultation-actions .btn-outline:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(255, 204, 0, 0.06);
+    box-shadow: 0 4px 15px rgba(255, 204, 0, 0.1);
+}
+
+body.light-mode .consultation-actions .btn-outline:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(229, 9, 20, 0.05);
+    box-shadow: 0 4px 15px rgba(229, 9, 20, 0.1);
+}
+
+/* ─── Responsive ──────────────────────────────── */
+@media (max-width: 640px) {
+    .consultation-card-content {
+        padding: 2.5rem 1.5rem 2rem;
+    }
+
+    .consultation-heading {
+        font-size: 1.5rem;
+    }
+
+    .consultation-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .consultation-actions .btn-primary,
+    .consultation-actions .btn-outline {
+        justify-content: center;
+    }
+}

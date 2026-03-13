@@ -9,6 +9,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import './NgramAnalyzer.css';
 import RegistrationModal from '../../components/ui/RegistrationModal';
+import ConsultationCard from '../../components/ui/ConsultationCard';
 import useRegistration from '../../context/useRegistration';
 
 // ======================================
@@ -1042,6 +1043,8 @@ const NgramAnalyzer = () => {
                         </div>
                     </>
                 )}
+
+                <ConsultationCard />
             </div>
 
             {/* Registration Gate Modal */}

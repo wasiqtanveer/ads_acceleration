@@ -3,6 +3,7 @@ import { Upload, ChevronDown, Download, AlertCircle, Settings, X, FileSpreadshee
 import './BiddingOptimizer.css';
 import * as XLSX from 'xlsx';
 import RegistrationModal from '../../components/ui/RegistrationModal';
+import ConsultationCard from '../../components/ui/ConsultationCard';
 import useRegistration from '../../context/useRegistration';
 
 const BiddingOptimizer = () => {
@@ -1262,6 +1263,8 @@ const BiddingOptimizer = () => {
                     </div>
                 </div>
             )}
+            
+            <ConsultationCard />
         </div>
 
             {/* Registration Gate Modal */}

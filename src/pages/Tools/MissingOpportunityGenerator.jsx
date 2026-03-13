@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import RegistrationModal from '../../components/ui/RegistrationModal';
+import ConsultationCard from '../../components/ui/ConsultationCard';
 import useRegistration from '../../context/useRegistration';
 import './MissingOpportunityGenerator.css';
 
@@ -1438,6 +1439,8 @@ const MissingOpportunityGenerator = () => {
                     </div>
                 </div>
             )}
+
+            <ConsultationCard />
 
             <RegistrationModal
                 isOpen={showRegModal}
