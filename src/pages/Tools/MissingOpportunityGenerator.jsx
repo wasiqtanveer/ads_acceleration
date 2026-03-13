@@ -7,6 +7,7 @@ import {
     AlertCircle,
     Check,
     Search,
+    Filter,
     ChevronLeft,
     ChevronRight,
     ChevronDown,
@@ -131,24 +132,81 @@ function matchesCriteria(row, criteria) {
     });
 }
 
-function buildBulkRows(candidates, adGroupSettings, startingBid) {
+function buildBulkRows(candidates, candidateSettings, adGroupSettings, startingBid, adType) {
     const rows = [];
+    const productMap = {
+        'SP': 'Sponsored Products',
+        'SB': 'Sponsored Brands',
+        'SD': 'Sponsored Display'
+    };
+    const productStr = productMap[adType] || 'Sponsored Products';
+
     candidates.forEach(cand => {
+        if (!candidateSettings[cand.searchTermKey]?.selected) return;
+
+        // check if ASIN
+        const isAsin = /^[B][0-9A-Z]{9}$/i.test(cand.searchTerm) || /^[0-9]{10}$/.test(cand.searchTerm);
+
         cand.contexts.forEach(ctx => {
             const setting = adGroupSettings[ctx.contextKey];
-            if (!setting || !setting.selected) return;
-            Object.entries(MATCH_TYPE_CONFIG).forEach(([typeKey, config]) => {
-                if (!setting.matchTypes?.[typeKey]) return;
+            if (!setting) return;
+            const mt = setting.matchTypes;
+            if (!mt?.broad && !mt?.phrase && !mt?.exact) return;
+
+            if (isAsin) {
                 rows.push({
-                    'Record Type': 'Keyword',
-                    'Campaign Name': ctx.campaignName,
-                    'Ad Group Name': ctx.adGroupName,
-                    'Keyword Text': cand.searchTerm,
-                    'Match Type': config.label,
-                    'Bid': parseNum(startingBid).toFixed(2),
+                    'Product': productStr,
+                    'Entity': 'Product Targeting',
+                    'Operation': 'Create',
+                    'Campaign Id': '',
+                    'Ad Group Id': '',
+                    'Portfolio Id': '',
+                    'Campaign': ctx.campaignName,
+                    'Ad Group': ctx.adGroupName,
+                    'Start Date': '',
+                    'End Date': '',
+                    'Targeting Type': 'manual',
                     'State': 'enabled',
+                    'Daily Budget': '',
+                    'SKU': '',
+                    'Ad Group Default Bid': '',
+                    'Bid': parseNum(startingBid).toFixed(2),
+                    'Keyword Text': '',
+                    'Match Type': '',
+                    'Bidding Strategy': '',
+                    'Placement': '',
+                    'Percentage': '',
+                    'Product Targeting Expression': `asin="${cand.searchTerm.toUpperCase()}"`
                 });
-            });
+            } else {
+                ['broad', 'phrase', 'exact'].forEach((typeKey) => {
+                    if (!mt[typeKey]) return;
+                    rows.push({
+                        'Product': productStr,
+                        'Entity': 'Keyword',
+                        'Operation': 'Create',
+                        'Campaign Id': '',
+                        'Ad Group Id': '',
+                        'Portfolio Id': '',
+                        'Campaign': ctx.campaignName,
+                        'Ad Group': ctx.adGroupName,
+                        'Start Date': '',
+                        'End Date': '',
+                        'Targeting Type': '',
+                        'State': 'enabled',
+                        'Daily Budget': '',
+                        'SKU': '',
+                        'Ad Group Default Bid': '',
+                        'Bid': parseNum(startingBid).toFixed(2),
+                        'Keyword Text': cand.searchTerm,
+                        'Match Type': typeKey,
+                        'Bidding Strategy': '',
+                        'Placement': '',
+                        'Percentage': '',
+                        'Product Targeting Expression': ''
+                    });
+                });
+            }
         });
     });
     return rows;
@@ -195,7 +253,10 @@ const MissingOpportunityGenerator = () => {
 
     // Results
     const [candidates, setCandidates] = useState([]); // graduation candidates
+    const [candidateSettings, setCandidateSettings] = useState({});
     const [candidateSearch, setCandidateSearch] = useState('');
+    const [candidatesPage, setCandidatesPage] = useState(1);
+    const candidatesPageSize = 25;
     const [adGroupRows, setAdGroupRows] = useState([]);
     const [asinMap, setAsinMap] = useState({}); // campaign__adgroup -> [asin1, asin2...]
     const [adGroupSettings, setAdGroupSettings] = useState({});
@@ -479,6 +540,11 @@ const MissingOpportunityGenerator = () => {
                 });
         }
 
+        const nextCandidateSettings = {};
+        termList.forEach(t => {
+            nextCandidateSettings[t.searchTermKey] = { selected: true };
+        });
+
         // Build ad group map from candidates with contexts
         const adGroupMap = new Map();
         termList.forEach(cand => {
@@ -513,19 +579,19 @@ const MissingOpportunityGenerator = () => {
         const defaultSettings = {};
         nextAdGroupRows.forEach(row => {
             defaultSettings[row.contextKey] = {
-                selected: true,
-                asin: row.selectedAsin,
-                matchTypes: { broad: false, phrase: true, exact: true },
+                matchTypes: { broad: false, phrase: false, exact: false },
             };
         });
 
         setCandidates(termList);
+        setCandidateSettings(nextCandidateSettings);
         setAdGroupRows(nextAdGroupRows);
         setAdGroupSettings(defaultSettings);
         setAdGroupSearch('');
         setCandidateSearch('');
         setFilterConfigs({});
         setAdGroupPage(1);
+        setCandidatesPage(1);
         setParseError('');
     }, [candidateTab, manualInput, normalizedRows, currentCriteria, asinMap]);
 
@@ -534,6 +600,21 @@ const MissingOpportunityGenerator = () => {
             ...prev,
             [contextKey]: { ...prev[contextKey], selected: !prev[contextKey]?.selected },
         }));
+    }, []);
+
+    const toggleCandidateSelected = useCallback((searchTermKey) => {
+        setCandidateSettings(prev => ({
+            ...prev,
+            [searchTermKey]: { ...prev[searchTermKey], selected: !prev[searchTermKey]?.selected }
+        }));
+    }, []);
+
+    const selectAllCandidates = useCallback((checked) => {
+        setCandidateSettings(prev => {
+            const next = { ...prev };
+            Object.keys(next).forEach(k => { next[k] = { ...next[k], selected: checked }; });
+            return next;
+        });
     }, []);
 
     const toggleAdGroupMatchType = useCallback((contextKey, typeKey) => {
@@ -560,6 +641,19 @@ const MissingOpportunityGenerator = () => {
 
     // ── Filtered/Paginated Ad Groups ───────────────────────────────────────────
 
+    const selectAllAdGroupMatchTypes = useCallback((typeKey, checked) => {
+        setAdGroupSettings(prev => {
+            const next = { ...prev };
+            Object.keys(next).forEach(k => { 
+                next[k] = { 
+                    ...next[k], 
+                    matchTypes: { ...next[k]?.matchTypes, [typeKey]: checked } 
+                }; 
+            });
+            return next;
+        });
+    }, []);
+
     // ── Filtered/Paginated Candidates ─────────────────────────────────────────
 
     const filteredCandidates = useMemo(() => {
@@ -568,7 +662,6 @@ const MissingOpportunityGenerator = () => {
         if (q) {
             list = list.filter(c => c.searchTermKey.includes(q));
         }
-        // Column filters for Step 2
         Object.entries(filterConfigs).forEach(([col, val]) => {
             if (!val || col.startsWith('ag_')) return;
             const configVal = canonical(val);
@@ -583,6 +676,12 @@ const MissingOpportunityGenerator = () => {
         });
         return list;
     }, [candidates, candidateSearch, filterConfigs]);
+
+    const candidatesTotalPages = Math.max(1, Math.ceil(filteredCandidates.length / candidatesPageSize));
+    const candidatesStart = (candidatesPage - 1) * candidatesPageSize;
+    const candidatesPageRows = filteredCandidates.slice(candidatesStart, candidatesStart + candidatesPageSize);
+    
+    const allCandidatesSelected = candidates.length > 0 && candidates.every(c => candidateSettings[c.searchTermKey]?.selected);
 
     // ── Filtered/Paginated Ad Groups ───────────────────────────────────────────
 
@@ -612,14 +711,13 @@ const MissingOpportunityGenerator = () => {
     const adGroupStart = (adGroupPage - 1) * adGroupPageSize;
     const adGroupPageRows = filteredAdGroupRows.slice(adGroupStart, adGroupStart + adGroupPageSize);
 
-    const allSelected = adGroupRows.length > 0 && adGroupRows.every(r => adGroupSettings[r.contextKey]?.selected);
-    const selectedCount = adGroupRows.filter(r => adGroupSettings[r.contextKey]?.selected).length;
+    const candidatesSelectedCount = candidates.filter(r => candidateSettings[r.searchTermKey]?.selected).length;
 
     // ── Export ────────────────────────────────────────────────────────────────
 
     const doGenerateBulkFile = useCallback(() => {
         const startingBid = currentCriteria.startingBid;
-        const bulkRows = buildBulkRows(candidates, adGroupSettings, startingBid);
+        const bulkRows = buildBulkRows(candidates, candidateSettings, adGroupSettings, startingBid, adType);
         if (bulkRows.length === 0) {
             setParseError('No ad groups selected with active match types. Please select at least one ad group.');
             return;
@@ -999,7 +1097,7 @@ const MissingOpportunityGenerator = () => {
                                     type="text"
                                     placeholder="Search candidates..."
                                     value={candidateSearch}
-                                    onChange={e => setCandidateSearch(e.target.value)}
+                                    onChange={e => { setCandidateSearch(e.target.value); setCandidatesPage(1); }}
                                 />
                             </div>
                         </div>
@@ -1007,11 +1105,20 @@ const MissingOpportunityGenerator = () => {
                             <table className="gf-optimizer-table">
                                 <thead>
                                     <tr>
+                                        <th className="gf-optimizer-th gf-th-check">
+                                            <input
+                                                type="checkbox"
+                                                className="gf-checkbox"
+                                                checked={allCandidatesSelected}
+                                                onChange={e => selectAllCandidates(e.target.checked)}
+                                                title="Select all"
+                                            />
+                                        </th>
                                         <th className="gf-optimizer-th">
                                             <div className="gf-th-inner">
                                                 <span>Search Term</span>
                                                 <button className={`gf-filter-trigger ${filterConfigs.searchTerm ? 'active' : ''}`} onClick={() => setActiveFilterCol(activeFilterCol === 'searchTerm' ? null : 'searchTerm')}>
-                                                    <AlertCircle size={12} />
+                                                    <Filter size={12} />
                                                 </button>
                                                 {activeFilterCol === 'searchTerm' && (
                                                     <div className="gf-filter-popover">
@@ -1019,7 +1126,10 @@ const MissingOpportunityGenerator = () => {
                                                             autoFocus
                                                             placeholder="Filter search term..." 
                                                             value={filterConfigs.searchTerm || ''} 
-                                                            onChange={e => setFilterConfigs(prev => ({...prev, searchTerm: e.target.value}))}
+                                                            onChange={e => {
+                                                                setFilterConfigs(prev => ({...prev, searchTerm: e.target.value}));
+                                                                setCandidatesPage(1);
+                                                            }}
                                                         />
                                                     </div>
                                                 )}
@@ -1029,7 +1139,7 @@ const MissingOpportunityGenerator = () => {
                                             <div className="gf-th-inner">
                                                 <span>Current Target</span>
                                                 <button className={`gf-filter-trigger ${filterConfigs.currentTarget ? 'active' : ''}`} onClick={() => setActiveFilterCol(activeFilterCol === 'currentTarget' ? null : 'currentTarget')}>
-                                                    <AlertCircle size={12} />
+                                                    <Filter size={12} />
                                                 </button>
                                                 {activeFilterCol === 'currentTarget' && (
                                                     <div className="gf-filter-popover">
@@ -1037,7 +1147,10 @@ const MissingOpportunityGenerator = () => {
                                                             autoFocus
                                                             placeholder="Filter target..." 
                                                             value={filterConfigs.currentTarget || ''} 
-                                                            onChange={e => setFilterConfigs(prev => ({...prev, currentTarget: e.target.value}))}
+                                                            onChange={e => {
+                                                                setFilterConfigs(prev => ({...prev, currentTarget: e.target.value}));
+                                                                setCandidatesPage(1);
+                                                            }}
                                                         />
                                                     </div>
                                                 )}
@@ -1054,33 +1167,72 @@ const MissingOpportunityGenerator = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredCandidates.slice(0, 200).map((c, i) => (
-                                        <tr key={i} className="gf-optimizer-tr">
-                                            <td className="gf-optimizer-td gf-term-cell">{c.searchTerm}</td>
-                                            <td className="gf-optimizer-td gf-target-cell">
-                                                {c.contexts?.[0]?.campaignName
-                                                    ? <span className="gf-target-badge">{c.contexts[0].campaignName}</span>
-                                                    : <span className="gf-muted-dash">—</span>}
+                                    {candidatesPageRows.map((c, i) => {
+                                        const settings = candidateSettings[c.searchTermKey] || { selected: false };
+                                        return (
+                                            <tr key={i} className={`gf-optimizer-tr${settings.selected ? ' gf-row-selected' : ''}`}>
+                                                <td className="gf-optimizer-td gf-td-check">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="gf-checkbox"
+                                                        checked={!!settings.selected}
+                                                        onChange={() => toggleCandidateSelected(c.searchTermKey)}
+                                                    />
+                                                </td>
+                                                <td className="gf-optimizer-td gf-term-cell">{c.searchTerm}</td>
+                                                <td className="gf-optimizer-td gf-target-cell">
+                                                    {c.contexts?.[0]?.campaignName
+                                                        ? <span className="gf-target-badge">{c.contexts[0].campaignName}</span>
+                                                        : <span className="gf-muted-dash">—</span>}
+                                                </td>
+                                                <td className="gf-optimizer-td">{c.impressions > 0 ? c.impressions.toLocaleString() : '—'}</td>
+                                                <td className="gf-optimizer-td">{c.clicks > 0 ? c.clicks.toLocaleString() : '—'}</td>
+                                                <td className="gf-optimizer-td">{c.orders > 0 ? c.orders : '—'}</td>
+                                                <td className="gf-optimizer-td">{c.sales > 0 ? `$${c.sales.toFixed(2)}` : '—'}</td>
+                                                <td className="gf-optimizer-td">{c.spend > 0 ? `$${c.spend.toFixed(2)}` : '—'}</td>
+                                                <td className="gf-optimizer-td">
+                                                    {c.acos > 0
+                                                        ? <span className={`gf-acos-badge ${c.acos > 50 ? 'bad' : c.acos > 30 ? 'warn' : 'good'}`}>{c.acos.toFixed(1)}%</span>
+                                                        : <span className="gf-muted-dash">—</span>}
+                                                </td>
+                                                <td className="gf-optimizer-td">{c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—'}</td>
+                                                <td className="gf-optimizer-td">{c.cvr > 0 ? `${c.cvr.toFixed(1)}%` : '—'}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {candidatesPageRows.length === 0 && (
+                                        <tr>
+                                            <td colSpan={11} className="gf-optimizer-td gf-empty-cell">
+                                                No candidates found matching filters.
                                             </td>
-                                            <td className="gf-optimizer-td">{c.impressions > 0 ? c.impressions.toLocaleString() : '—'}</td>
-                                            <td className="gf-optimizer-td">{c.clicks > 0 ? c.clicks.toLocaleString() : '—'}</td>
-                                            <td className="gf-optimizer-td">{c.orders > 0 ? c.orders : '—'}</td>
-                                            <td className="gf-optimizer-td">{c.sales > 0 ? `$${c.sales.toFixed(2)}` : '—'}</td>
-                                            <td className="gf-optimizer-td">{c.spend > 0 ? `$${c.spend.toFixed(2)}` : '—'}</td>
-                                            <td className="gf-optimizer-td">
-                                                {c.acos > 0
-                                                    ? <span className={`gf-acos-badge ${c.acos > 50 ? 'bad' : c.acos > 30 ? 'warn' : 'good'}`}>{c.acos.toFixed(1)}%</span>
-                                                    : <span className="gf-muted-dash">—</span>}
-                                            </td>
-                                            <td className="gf-optimizer-td">{c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—'}</td>
-                                            <td className="gf-optimizer-td">{c.cvr > 0 ? `${c.cvr.toFixed(1)}%` : '—'}</td>
                                         </tr>
-                                    ))}
+                                    )}
                                 </tbody>
                             </table>
-                            {filteredCandidates.length > 200 && (
-                                <p className="text-muted gf-truncate-note">Showing first 200 of {filteredCandidates.length} candidates.</p>
-                            )}
+                        </div>
+                        <div className="gf-pagination-row">
+                            <span className="text-muted">
+                                {filteredCandidates.length === 0 ? 'No results' : (
+                                    `Showing ${candidatesStart + 1}–${Math.min(candidatesStart + candidatesPageSize, filteredCandidates.length)} of ${filteredCandidates.length}`
+                                )}
+                            </span>
+                            <div className="gf-pagination-controls">
+                                <button
+                                    type="button" className="gf-page-btn"
+                                    disabled={candidatesPage <= 1}
+                                    onClick={() => setCandidatesPage(p => Math.max(1, p - 1))}
+                                >
+                                    <ChevronLeft size={14} />
+                                </button>
+                                <span className="text-muted">Page {candidatesPage} / {candidatesTotalPages}</span>
+                                <button
+                                    type="button" className="gf-page-btn"
+                                    disabled={candidatesPage >= candidatesTotalPages}
+                                    onClick={() => setCandidatesPage(p => Math.min(candidatesTotalPages, p + 1))}
+                                >
+                                    <ChevronRight size={14} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1106,13 +1258,13 @@ const MissingOpportunityGenerator = () => {
                             />
                         </div>
                         <div className="gf-adgroup-count text-muted">
-                            {selectedCount} of {adGroupRows.length} selected
+                            Ad Groups Context ({adGroupRows.length})
                         </div>
                         <button
                             type="button"
                             className="gf-generate-bulk-btn"
                             onClick={handleGenerateClick}
-                            disabled={selectedCount === 0}
+                            disabled={candidatesSelectedCount === 0}
                         >
                             <Download size={16} />
                             Generate Bulk Operations File
@@ -1123,20 +1275,11 @@ const MissingOpportunityGenerator = () => {
                         <table className="gf-optimizer-table gf-adgroup-table">
                             <thead>
                                 <tr>
-                                    <th className="gf-optimizer-th gf-th-check">
-                                        <input
-                                            type="checkbox"
-                                            className="gf-checkbox"
-                                            checked={allSelected}
-                                            onChange={e => selectAllAdGroups(e.target.checked)}
-                                            title="Select all"
-                                        />
-                                    </th>
                                     <th className="gf-optimizer-th">
                                         <div className="gf-th-inner">
                                             <span>Campaign Name</span>
                                             <button className={`gf-filter-trigger ${filterConfigs.ag_campaignName ? 'active' : ''}`} onClick={() => setActiveFilterCol(activeFilterCol === 'ag_campaignName' ? null : 'ag_campaignName')}>
-                                                <AlertCircle size={12} />
+                                                <Filter size={12} />
                                             </button>
                                             {activeFilterCol === 'ag_campaignName' && (
                                                 <div className="gf-filter-popover">
@@ -1144,7 +1287,10 @@ const MissingOpportunityGenerator = () => {
                                                         autoFocus
                                                         placeholder="Filter campaign..." 
                                                         value={filterConfigs.ag_campaignName || ''} 
-                                                        onChange={e => setFilterConfigs(prev => ({...prev, ag_campaignName: e.target.value}))}
+                                                        onChange={e => {
+                                                            setFilterConfigs(prev => ({...prev, ag_campaignName: e.target.value}));
+                                                            setAdGroupPage(1);
+                                                        }}
                                                     />
                                                 </div>
                                             )}
@@ -1154,7 +1300,7 @@ const MissingOpportunityGenerator = () => {
                                         <div className="gf-th-inner">
                                             <span>Ad Group Name</span>
                                             <button className={`gf-filter-trigger ${filterConfigs.ag_adGroupName ? 'active' : ''}`} onClick={() => setActiveFilterCol(activeFilterCol === 'ag_adGroupName' ? null : 'ag_adGroupName')}>
-                                                <AlertCircle size={12} />
+                                                <Filter size={12} />
                                             </button>
                                             {activeFilterCol === 'ag_adGroupName' && (
                                                 <div className="gf-filter-popover">
@@ -1162,7 +1308,10 @@ const MissingOpportunityGenerator = () => {
                                                         autoFocus
                                                         placeholder="Filter ad group..." 
                                                         value={filterConfigs.ag_adGroupName || ''} 
-                                                        onChange={e => setFilterConfigs(prev => ({...prev, ag_adGroupName: e.target.value}))}
+                                                        onChange={e => {
+                                                            setFilterConfigs(prev => ({...prev, ag_adGroupName: e.target.value}));
+                                                            setAdGroupPage(1);
+                                                        }}
                                                     />
                                                 </div>
                                             )}
@@ -1172,7 +1321,7 @@ const MissingOpportunityGenerator = () => {
                                         <div className="gf-th-inner">
                                             <span>Portfolio</span>
                                             <button className={`gf-filter-trigger ${filterConfigs.ag_portfolio ? 'active' : ''}`} onClick={() => setActiveFilterCol(activeFilterCol === 'ag_portfolio' ? null : 'ag_portfolio')}>
-                                                <AlertCircle size={12} />
+                                                <Filter size={12} />
                                             </button>
                                             {activeFilterCol === 'ag_portfolio' && (
                                                 <div className="gf-filter-popover">
@@ -1180,53 +1329,39 @@ const MissingOpportunityGenerator = () => {
                                                         autoFocus
                                                         placeholder="Filter portfolio..." 
                                                         value={filterConfigs.ag_portfolio || ''} 
-                                                        onChange={e => setFilterConfigs(prev => ({...prev, ag_portfolio: e.target.value}))}
+                                                        onChange={e => {
+                                                            setFilterConfigs(prev => ({...prev, ag_portfolio: e.target.value}));
+                                                            setAdGroupPage(1);
+                                                        }}
                                                     />
                                                 </div>
                                             )}
                                         </div>
                                     </th>
                                     <th className="gf-optimizer-th">
-                                        <div className="gf-th-inner">
-                                            <span>ASIN</span>
-                                            <button className={`gf-filter-trigger ${filterConfigs.ag_asin ? 'active' : ''}`} onClick={() => setActiveFilterCol(activeFilterCol === 'ag_asin' ? null : 'ag_asin')}>
-                                                <AlertCircle size={12} />
-                                            </button>
-                                            {activeFilterCol === 'ag_asin' && (
-                                                <div className="gf-filter-popover">
-                                                    <input 
-                                                        autoFocus
-                                                        placeholder="Filter ASIN..." 
-                                                        value={filterConfigs.ag_asin || ''} 
-                                                        onChange={e => setFilterConfigs(prev => ({...prev, ag_asin: e.target.value}))}
-                                                    />
-                                                </div>
-                                            )}
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                                            <span>Match Types</span>
+                                            <div style={{display: 'flex', gap: '4px', fontSize: '10px'}}>
+                                                <label><input type="checkbox" onChange={e => selectAllAdGroupMatchTypes('broad', e.target.checked)} /> Broad</label>
+                                                <label><input type="checkbox" onChange={e => selectAllAdGroupMatchTypes('phrase', e.target.checked)} /> Phrase</label>
+                                                <label><input type="checkbox" onChange={e => selectAllAdGroupMatchTypes('exact', e.target.checked)} /> Exact</label>
+                                            </div>
                                         </div>
                                     </th>
-                                    <th className="gf-optimizer-th">Match Types</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {adGroupPageRows.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="gf-optimizer-td gf-empty-cell">
+                                        <td colSpan={4} className="gf-optimizer-td gf-empty-cell">
                                             No ad groups found.
                                         </td>
                                     </tr>
                                 ) : (
                                     adGroupPageRows.map(row => {
-                                        const settings = adGroupSettings[row.contextKey] || { selected: false, matchTypes: {} };
+                                        const settings = adGroupSettings[row.contextKey] || { matchTypes: {} };
                                         return (
-                                            <tr key={row.contextKey} className={`gf-optimizer-tr${settings.selected ? ' gf-row-selected' : ''}`}>
-                                                <td className="gf-optimizer-td gf-td-check">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="gf-checkbox"
-                                                        checked={!!settings.selected}
-                                                        onChange={() => toggleAdGroupSelected(row.contextKey)}
-                                                    />
-                                                </td>
+                                            <tr key={row.contextKey} className="gf-optimizer-tr">
                                                 <td className="gf-optimizer-td gf-campaign-cell" title={row.campaignName}>
                                                     <div className="gf-truncate-cell">{row.campaignName || '—'}</div>
                                                 </td>
@@ -1235,22 +1370,6 @@ const MissingOpportunityGenerator = () => {
                                                 </td>
                                                 <td className="gf-optimizer-td">
                                                     <span className="gf-portfolio-text">{row.portfolio || '—'}</span>
-                                                </td>
-                                                <td className="gf-optimizer-td">
-                                                    {row.asinOptions && row.asinOptions.length > 0 ? (
-                                                        <select
-                                                            className="gf-table-select"
-                                                            value={settings.asin || ''}
-                                                            onChange={e => updateAdGroupAsin(row.contextKey, e.target.value)}
-                                                        >
-                                                            <option value="">Select ASIN</option>
-                                                            {row.asinOptions.map(asin => (
-                                                                <option key={asin} value={asin}>{asin}</option>
-                                                            ))}
-                                                        </select>
-                                                    ) : (
-                                                        <span className="gf-asin-text">—</span>
-                                                    )}
                                                 </td>
                                                 <td className="gf-optimizer-td">
                                                     <div className="gf-match-toggle-row">
@@ -1306,14 +1425,14 @@ const MissingOpportunityGenerator = () => {
                             type="button"
                             className="gf-generate-bulk-btn-lg"
                             onClick={handleGenerateClick}
-                            disabled={selectedCount === 0}
+                            disabled={candidatesSelectedCount === 0}
                         >
                             <Download size={18} />
                             Generate Bulk Operations File
                         </button>
-                        {selectedCount > 0 && (
+                        {candidatesSelectedCount > 0 && (
                             <p className="text-muted gf-generate-note">
-                                Will create keywords for {selectedCount} ad group{selectedCount !== 1 ? 's' : ''} × {candidates.length} term{candidates.length !== 1 ? 's' : ''}
+                                Will create graduated keywords based on selected ad groups.
                             </p>
                         )}
                     </div>
