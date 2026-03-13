@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rocket, Calculator, Image as ImageIcon, LineChart, Target, Search } from 'lucide-react';
+import { Rocket, Calculator, Image as ImageIcon, LineChart, Target, Search, ListFilter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import './ToolsIndex.css';
 
@@ -11,7 +11,7 @@ const toolsList = [
         icon: <Target size={32} color="white" />,
         path: '/tools/campaign-builder',
         badge: 'New',
-        isReady: true
+        isReady: false
     },
     {
         id: 'bidding-optimizer',
@@ -20,7 +20,7 @@ const toolsList = [
         icon: <Calculator size={32} color="white" />,
         path: '/tools/bidding-optimizer',
         badge: 'New',
-        isReady: true
+        isReady: false
     },
     {
         id: 'ngram-analyzer',
@@ -30,6 +30,15 @@ const toolsList = [
         path: '/tools/ngram-analyzer',
         badge: 'New',
         isReady: true
+    },
+    {
+        id: 'missing-opportunity-generator',
+        title: 'Missing Opportunity Sheet Generator',
+        description: 'Find converting search terms not yet targeted as keywords and export both opportunity and Amazon bulk sheets.',
+        icon: <ListFilter size={32} color="white" />,
+        path: '/tools/missing-opportunity-generator',
+        badge: 'New',
+        isReady: false
     },
     {
         id: 'ai-listing',
