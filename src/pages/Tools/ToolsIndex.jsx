@@ -11,7 +11,7 @@ const toolsList = [
         icon: <Target size={32} color="white" />,
         path: '/tools/campaign-builder',
         badge: 'New',
-        isReady: false
+        isReady: True
     },
     {
         id: 'bidding-optimizer',
