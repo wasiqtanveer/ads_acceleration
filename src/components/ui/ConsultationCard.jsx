@@ -1,58 +1,95 @@
 import React from 'react';
-import { Calendar, Linkedin, Sparkles } from 'lucide-react';
+import { Calendar, Linkedin, Rocket, Clock, ArrowRight } from 'lucide-react';
 import './ConsultationCard.css';
 
 const ConsultationCard = () => {
     return (
         <div className="consultation-card-wrapper">
+            <div className="consultation-grid">
+                
+                {/* Left Column: Text & CTA */}
+                <div className="consultation-left">
+                    <div className="consultation-brand">
+                        <Rocket size={18} className="brand-icon" />
+                        <span className="brand-name">Ads Acceleration</span>
+                    </div>
 
-            {/* Top label bar */}
-            <div className="consultation-card-topbar">
-                <Sparkles size={14} className="topbar-icon" />
-                <span>Are you a Brand Founder or Seller?</span>
-                <span className="topbar-badge">Free Strategy Call</span>
-            </div>
+                    <div className="consultation-badge">Free Strategy Call</div>
 
-            {/* Main body */}
-            <div className="consultation-card-content">
-                <h2 className="consultation-heading">
-                    Fix your broken PPC with a{' '}
-                    <span className="consultation-heading-accent">free strategy call</span>
-                </h2>
+                    <h2 className="consultation-heading">
+                        Scaling Amazon Ads for<br/>
+                        <span className="consultation-heading-accent">Million-Dollar Brands</span>
+                    </h2>
 
-                <p className="consultation-subtext">
-                    Your in-house Amazon PPC team is one call away. Get a personalised audit and actionable recommendations — no strings attached.
-                </p>
+                    <p className="consultation-subtext">
+                        Rule-Based Automation, Profit & Organic Ranking. Learn how 8-figure brands are scaling.
+                    </p>
 
-                {/* Decorative divider */}
-                <div className="consultation-divider">
-                    <span />
-                    <span />
-                    <span />
+                    <div className="consultation-details">
+                        <div className="consultation-detail-item">
+                            <Calendar size={20} className="detail-icon" />
+                            <div>
+                                <strong>Consultation</strong>
+                                <span>1-on-1 Strategy</span>
+                            </div>
+                        </div>
+                        <div className="consultation-detail-item">
+                            <Clock size={20} className="detail-icon" />
+                            <div>
+                                <strong>Online Call</strong>
+                                <span>30 Minutes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="consultation-actions">
+                        {/* Replace this Calendly link with your actual Calendly URL later */}
+                        <a
+                            href="https://calendly.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary"
+                        >
+                            <Calendar size={17} />
+                            Schedule a Call
+                        </a>
+                        <a
+                            href="https://www.linkedin.com/in/miuhammadfarhanwaqarbutt/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-outline"
+                        >
+                            <Linkedin size={17} />
+                            Connect on LinkedIn
+                        </a>
+                    </div>
                 </div>
 
-                <div className="consultation-actions">
-                    {/* Replace this Calendly link with your actual Calendly URL later */}
-                    <a
-                        href="https://calendly.com/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-primary"
-                    >
-                        <Calendar size={17} />
-                        Schedule a Call
-                    </a>
+                {/* Right Column: Image & Name */}
+                <div className="consultation-right">
+                    <div className="consultation-image-container">
+                        {/* Placeholder for future image */}
+                        <div className="consultation-image-placeholder"></div>
+                        
+                        {/* The floating Name Card */}
+                        <div className="consultation-name-card">
+                            <strong>Farhan Waqar</strong>
+                            <span>Amazon Advertising Expert | CEO Ads Acceleration</span>
+                        </div>
 
-                    <a
-                        href="https://www.linkedin.com/in/miuhammadfarhanwaqarbutt/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-outline"
-                    >
-                        <Linkedin size={17} />
-                        Connect with Farhan Waqar
-                    </a>
+                        {/* Arrow button overlapping the right edge */}
+                        <a 
+                            href="https://calendly.com/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="consultation-arrow-btn"
+                        >
+                            <span className="consultation-arrow-text">Let's discuss</span>
+                            <ArrowRight size={20} className="consultation-arrow-icon" />
+                        </a>
+                    </div>
                 </div>
+
             </div>
         </div>
     );

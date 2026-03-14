@@ -16,6 +16,8 @@ import {
     Eye,
     X,
     TrendingUp,
+    CheckCircle2,
+    XCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import RegistrationModal from '../../components/ui/RegistrationModal';
@@ -59,9 +61,126 @@ const SP_SHEET_NAMES = [
     'SP Campaigns',
 ];
 
+const PRODUCT_SHEET_NAMES = [
+    'Sponsored Products Campaigns',
+    'Sponsored Products Advertised Product Report',
+    'SP Campaigns',
+    'Advertised Product Report'
+];
+
 const MATCH_TYPES = ['exact', 'phrase', 'broad'];
 
 const PAGE_SIZE = 100;
+
+const DEFAULT_CAMPAIGN_TEMPLATE = 'SP - [SKU] - [BID RANGE] [MATCH TYPE]';
+
+// ─── Amazon Bulk Operations Helpers (same format as Campaign Builder) ─────────
+
+const AMAZON_COLUMNS = [
+    'Product', 'Entity', 'Operation', 'Campaign Id', 'Ad Group Id',
+    'Portfolio Id', 'Ad Id', 'Keyword Id', 'Product Targeting Id',
+    'Campaign Name', 'Ad Group Name', 'Start Date', 'End Date',
+    'Targeting Type', 'State', 'Daily Budget', 'SKU', 'ASIN',
+    'Ad Group Default Bid', 'Bid', 'Keyword Text', 'Match Type',
+    'Bidding Strategy', 'Placement', 'Percentage', 'Product Targeting Expression'
+];
+
+const fmtDate = () => new Date().toISOString().split('T')[0].replace(/-/g, '');
+
+const mkRow = (data) => {
+    const r = {};
+    AMAZON_COLUMNS.forEach(c => { r[c] = ''; });
+    return Object.assign(r, data);
+};
+
+const buildMosBulkRows = (enrichedRows, selectedMatches, campaignNameTemplate, isolate) => {
+    const rows = [];
+    const date = fmtDate();
+    const matchTypeLabels = { exact: 'Exact', phrase: 'Phrase', broad: 'Broad' };
+
+    enrichedRows.forEach(row => {
+        const termKey = row.customerSearchTermKey;
+        const selected = selectedMatches[termKey] || {};
+        const activeMatchTypes = Object.entries(selected).filter(([, v]) => v).map(([k]) => k);
+        if (activeMatchTypes.length === 0) return;
+
+        const sku = row.skus ? row.skus.split(',')[0].trim() : '';
+        const keyword = row.customerSearchTerm;
+
+        activeMatchTypes.forEach(mt => {
+            const matchLabel = matchTypeLabels[mt] || mt;
+            const campaignName = campaignNameTemplate
+                .replace(/\[SKU\]/gi, sku || row.campaignName)
+                .replace(/\[MATCH TYPE\]/gi, matchLabel)
+                .replace(/\[BID RANGE\]/gi, row.bid > 0 ? `$${row.bid.toFixed(2)}` : 'Manual');
+
+            const agName = campaignName + ' - Ad Group';
+
+            // Campaign row
+            rows.push(mkRow({
+                Product: 'Sponsored Products', Entity: 'Campaign', Operation: 'Create',
+                'Campaign Id': campaignName, 'Campaign Name': campaignName,
+                'Start Date': date,
+                'Targeting Type': 'Manual', State: 'enabled',
+                'Daily Budget': '10.00', 'Bidding Strategy': 'Dynamic bids - down only',
+            }));
+
+            // Placement rows
+            [['Placement Top', '0'], ['Placement Product Page', '0'], ['Placement Rest Of Search', '0']]
+                .forEach(([p, v]) => rows.push(mkRow({
+                    Product: 'Sponsored Products', Entity: 'Bidding Adjustment', Operation: 'Create',
+                    'Campaign Id': campaignName, 'Campaign Name': campaignName,
+                    Placement: p, Percentage: v,
+                })));
+
+            // Ad Group row
+            rows.push(mkRow({
+                Product: 'Sponsored Products', Entity: 'Ad Group', Operation: 'Create',
+                'Campaign Id': campaignName, 'Ad Group Id': agName,
+                'Campaign Name': campaignName, 'Ad Group Name': agName,
+                'Ad Group Default Bid': row.bid > 0 ? row.bid.toFixed(2) : '1.00', State: 'enabled',
+            }));
+
+            // Product Ad row (SKU from mapped data)
+            rows.push(mkRow({
+                Product: 'Sponsored Products', Entity: 'Product Ad', Operation: 'Create',
+                'Campaign Id': campaignName, 'Ad Group Id': agName,
+                'Campaign Name': campaignName, 'Ad Group Name': agName,
+                SKU: sku, State: 'enabled',
+            }));
+
+            // Keyword row
+            const ktext = mt === 'broad' ? keyword.split(/\s+/).map(w => `+${w}`).join(' ') : keyword;
+            rows.push(mkRow({
+                Product: 'Sponsored Products', Entity: 'Keyword', Operation: 'Create',
+                'Campaign Id': campaignName, 'Ad Group Id': agName,
+                'Campaign Name': campaignName, 'Ad Group Name': agName,
+                'Keyword Text': mt === 'broad' ? ktext : keyword,
+                'Match Type': mt, Bid: row.bid > 0 ? row.bid.toFixed(2) : '1.00',
+                State: 'enabled',
+            }));
+
+            // Isolation Logic (Inject Negative Keywords)
+            if (isolate) {
+                if (mt === 'phrase' && activeMatchTypes.includes('exact')) {
+                    rows.push(mkRow({
+                        Product: 'Sponsored Products', Entity: 'Campaign Negative Keyword', Operation: 'Create',
+                        'Campaign Id': campaignName, 'Campaign Name': campaignName,
+                        'Keyword Text': keyword, 'Match Type': 'negativeExact', State: 'enabled',
+                    }));
+                } else if (mt === 'broad' && (activeMatchTypes.includes('exact') || activeMatchTypes.includes('phrase'))) {
+                    rows.push(mkRow({
+                        Product: 'Sponsored Products', Entity: 'Campaign Negative Keyword', Operation: 'Create',
+                        'Campaign Id': campaignName, 'Campaign Name': campaignName,
+                        'Keyword Text': keyword, 'Match Type': 'negativeExact', State: 'enabled',
+                    }));
+                }
+            }
+        });
+    });
+
+    return rows;
+};
 
 // ─── Opportunity Strength ─────────────────────────────────────────────────────
 
@@ -100,6 +219,7 @@ const MissingOpportunitySheet = () => {
     const [acosFilter, setAcosFilter] = useState('');
     const [conversionFilter, setConversionFilter] = useState('');
     const [ordersFilter, setOrdersFilter] = useState('');
+    const [skuAsinFilter, setSkuAsinFilter] = useState('');
     const [mode, setMode] = useState('non-isolate'); // 'non-isolate' | 'isolate'
 
     // Table state
@@ -114,9 +234,12 @@ const MissingOpportunitySheet = () => {
     // Preview
     const [showPreview, setShowPreview] = useState(false);
 
+    // Campaign Name Template for bulk generation
+    const [campaignNameTemplate, setCampaignNameTemplate] = useState(DEFAULT_CAMPAIGN_TEMPLATE);
+
     // ── File Upload ────────────────────────────────────────────────────────────
 
-    const parseExcel = useCallback((workbook) => {
+    const parseSearchTermSheet = useCallback((workbook) => {
         const available = workbook.SheetNames;
         let sheetName = null;
         for (const name of SP_SHEET_NAMES) {
@@ -130,12 +253,48 @@ const MissingOpportunitySheet = () => {
                 return sl.includes('search term') && (sl.includes('sp') || sl.includes('sponsored'));
             });
         }
-        if (!sheetName) sheetName = available[0];
+        if (!sheetName) return null;
 
         const ws = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
         setSheetInfo(`Sheet: "${sheetName}" · ${json.length.toLocaleString()} rows`);
         return json;
+    }, []);
+
+    const parseProductSheet = useCallback((workbook) => {
+        const available = workbook.SheetNames;
+        let sheetName = null;
+        for (const name of PRODUCT_SHEET_NAMES) {
+            const match = available.find(s => s.toLowerCase().trim() === name.toLowerCase().trim());
+            if (match) { sheetName = match; break; }
+        }
+        if (!sheetName) return [];
+        const ws = workbook.Sheets[sheetName];
+        return XLSX.utils.sheet_to_json(ws, { defval: '' });
+    }, []);
+
+    const buildProductMap = useCallback((productRows) => {
+        const map = new Map();
+        productRows.forEach(row => {
+            const campId = String(getVal(row, 'Campaign ID', 'campaign_id', 'Campaign Id', 'campaign id') || '').trim();
+            const adGroupId = String(getVal(row, 'Ad Group ID', 'ad_group_id', 'Ad Group Id', 'ad group id') || '').trim();
+            
+            if (!campId || !adGroupId) return;
+            
+            const sku = String(getVal(row, 'Advertised SKU', 'advertised_sku', 'SKU', 'sku', 'Advertised sku') || '').trim();
+            const asin = String(getVal(row, 'Advertised ASIN', 'advertised_asin', 'ASIN', 'asin', 'Advertised asin') || '').trim();
+            
+            if (!sku && !asin) return;
+            
+            const key = `${campId}_${adGroupId}`;
+            if (!map.has(key)) {
+                map.set(key, { skus: new Set(), asins: new Set() });
+            }
+            const entry = map.get(key);
+            if (sku) entry.skus.add(sku);
+            if (asin) entry.asins.add(asin);
+        });
+        return map;
     }, []);
 
     const buildKeywordIndex = useCallback((rawRows) => {
@@ -161,7 +320,7 @@ const MissingOpportunitySheet = () => {
         return idx;
     }, []);
 
-    const normalizeRows = useCallback((rawRows) => {
+    const normalizeRows = useCallback((rawRows, productMap) => {
         return rawRows
             .map((row) => {
                 const bid = getVal(row, 'Bid', 'bid');
@@ -198,12 +357,29 @@ const MissingOpportunitySheet = () => {
                 const conversionRate = clicks > 0 ? (orders / clicks) * 100 : 0;
                 const acos = sales > 0 ? (spend / sales) * 100 : 0;
 
+                const campId = String(getVal(row, 'Campaign ID', 'campaign_id', 'Campaign Id', 'campaign id') || '').trim();
+                const adGroupId = String(getVal(row, 'Ad Group ID', 'ad_group_id', 'Ad Group Id', 'ad group id') || '').trim();
+                
+                let skus = '';
+                let asins = '';
+                if (campId && adGroupId && productMap) {
+                    const productData = productMap.get(`${campId}_${adGroupId}`);
+                    if (productData) {
+                        skus = Array.from(productData.skus).join(', ');
+                        asins = Array.from(productData.asins).join(', ');
+                    }
+                }
+
                 return {
                     customerSearchTerm,
-                    customerSearchTermKey: canonical(customerSearchTerm),
+                    customerSearchTermKey,
                     keywordText,
                     matchType,
                     campaignName,
+                    campaignId: campId,
+                    adGroupId: adGroupId,
+                    skus,
+                    asins,
                     bid: parseNum(bid),
                     clicks, impressions, orders, spend, sales, conversionRate, acos,
                 };
@@ -231,9 +407,20 @@ const MissingOpportunitySheet = () => {
         reader.onload = (ev) => {
             try {
                 const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-                const rawRows = parseExcel(wb);
+                
+                const rawRows = parseSearchTermSheet(wb);
+                if (!rawRows || rawRows.length === 0) {
+                    setParseError('No Search Term Report sheet found in file.');
+                    setIsParsing(false);
+                    return;
+                }
+                
+                const productRows = parseProductSheet(wb);
+                const productMap = buildProductMap(productRows);
+                
                 const idx = buildKeywordIndex(rawRows);
-                const norm = normalizeRows(rawRows);
+                const norm = normalizeRows(rawRows, productMap);
+                
                 setKeywordIndex(idx);
                 setAllRows(norm);
                 if (norm.length === 0) {
@@ -248,7 +435,7 @@ const MissingOpportunitySheet = () => {
         };
         reader.onerror = () => { setParseError('Error reading file.'); setIsParsing(false); };
         reader.readAsArrayBuffer(f);
-    }, [parseExcel, buildKeywordIndex, normalizeRows]);
+    }, [parseSearchTermSheet, buildKeywordIndex, normalizeRows, parseProductSheet, buildProductMap]);
 
     const clearFile = useCallback(() => {
         setFile(null);
@@ -317,6 +504,23 @@ const MissingOpportunitySheet = () => {
             const q = canonical(colFilters.matchType);
             list = list.filter(r => canonical(r.matchType).includes(q));
         }
+        if (colFilters.skus) {
+            const q = canonical(colFilters.skus);
+            list = list.filter(r => canonical(r.skus).includes(q));
+        }
+        if (colFilters.asins) {
+            const q = canonical(colFilters.asins);
+            list = list.filter(r => canonical(r.asins).includes(q));
+        }
+
+        // SKU / ASIN filter
+        if (skuAsinFilter) {
+            const q = canonical(skuAsinFilter);
+            list = list.filter(r => 
+                canonical(r.skus).includes(q) || 
+                canonical(r.asins).includes(q)
+            );
+        }
 
         // Search bar
         if (searchTerm) {
@@ -345,7 +549,7 @@ const MissingOpportunitySheet = () => {
         }
 
         return list;
-    }, [enrichedRows, acosFilter, conversionFilter, ordersFilter, colFilters, searchTerm, mode]);
+    }, [enrichedRows, acosFilter, conversionFilter, ordersFilter, colFilters, searchTerm, mode, skuAsinFilter]);
 
     // ── Sort ──────────────────────────────────────────────────────────────────
 
@@ -383,16 +587,19 @@ const MissingOpportunitySheet = () => {
     const buildExportData = useCallback(() => {
         return sortedRows.map(r => ({
             'Search Term': r.customerSearchTerm,
-            'Keyword Text': r.keywordText,
-            'Exact Triggers': r.triggers.exact,
-            'Phrase Triggers': r.triggers.phrase,
-            'Broad Triggers': r.triggers.broad,
             'Campaign Name': r.campaignName,
-            'Bid': r.bid.toFixed(2),
+            'Advertised SKU': r.skus || '—',
+            'Advertised ASIN': r.asins || '—',
+            'Keyword Text': r.keywordText,
+            'Match Type': r.matchType,
             'Orders': r.orders,
             'Conversion Rate (%)': r.conversionRate.toFixed(2),
             'ACOS (%)': r.acos.toFixed(2),
-            'Missing Opportunity': r.missingMatchTypes,
+            'Exact Trigger Count': r.triggers.exact,
+            'Phrase Trigger Count': r.triggers.phrase,
+            'Broad Trigger Count': r.triggers.broad,
+            'Opportunity Type': r.missingMatchTypes,
+            'Bid': r.bid.toFixed(2),
             'Opportunity Strength': getStrength(r, acosFilter),
         }));
     }, [sortedRows, acosFilter]);
@@ -425,11 +632,64 @@ const MissingOpportunitySheet = () => {
         setShowRegModal(true);
     };
 
+    // ── Bulk Campaign Generation ───────────────────────────────────────────────
+
+    const selectedCount = useMemo(() => {
+        return Object.values(selectedMatches).reduce((acc, row) => {
+            return acc + Object.values(row).filter(Boolean).length;
+        }, 0);
+    }, [selectedMatches]);
+
+    const doGenerateBulk = useCallback(() => {
+        const isolate = mode === 'isolate';
+        const rows = buildMosBulkRows(enrichedRows, selectedMatches, campaignNameTemplate, isolate);
+        if (rows.length === 0) {
+            alert('No triggers selected. Click Exact / Phrase / Broad buttons in the results table to select keywords to generate.');
+            return;
+        }
+        const ws = XLSX.utils.json_to_sheet(rows, { header: AMAZON_COLUMNS });
+        ws['!cols'] = AMAZON_COLUMNS.map(h => ({ wch: Math.max(h.length + 2, 16) }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Sponsored Products');
+        XLSX.writeFile(wb, `MOS_Bulk_Upload_${fmtDate()}.xlsx`);
+    }, [enrichedRows, selectedMatches, campaignNameTemplate]);
+
+    const handleGenerateBulk = () => {
+        if (isRegistered) { doGenerateBulk(); return; }
+        pendingActionRef.current = 'bulk';
+        setShowRegModal(true);
+    };
+
     const handleRegSuccess = () => {
         setShowRegModal(false);
         if (pendingActionRef.current === 'excel') doExportExcel();
         else if (pendingActionRef.current === 'csv') doExportCsv();
+        else if (pendingActionRef.current === 'bulk') doGenerateBulk();
         pendingActionRef.current = null;
+    };
+
+    const handleToggleAllFor = (type) => {
+        setSelectedMatches(prev => {
+            const next = { ...prev };
+            let allSelected = true;
+            sortedRows.forEach(row => {
+                if (row.triggers[type] === 0) {
+                    const tk = row.customerSearchTermKey;
+                    if (!next[tk] || !next[tk][type]) {
+                        allSelected = false;
+                    }
+                }
+            });
+
+            sortedRows.forEach(row => {
+                if (row.triggers[type] === 0) {
+                    const tk = row.customerSearchTermKey;
+                    // Ensure deep copy of the nested object for this search term
+                    next[tk] = { ...next[tk], [type]: !allSelected };
+                }
+            });
+            return next;
+        });
     };
 
     // ── Filter popover helpers ─────────────────────────────────────────────────
@@ -702,14 +962,34 @@ const MissingOpportunitySheet = () => {
                             onChange={e => { setOrdersFilter(e.target.value); setPage(1); }}
                         />
                     </div>
-                    <div className="mos-filter-group" style={{ flexGrow: 1, minWidth: '220px' }}>
+                    <div className="mos-filter-group" style={{ gridColumn: '1 / -1' }}>
+                        <label className="mos-filter-label">Campaign Name Structure</label>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input
+                                type="text"
+                                className="gf-criteria-input mos-filter-input"
+                                placeholder="SP - [SKU] - [BID RANGE] [MATCH TYPE]"
+                                value={campaignNameTemplate}
+                                onChange={e => setCampaignNameTemplate(e.target.value)}
+                                style={{ fontFamily: 'monospace', fontSize: '0.8rem', width: '100%' }}
+                            />
+                            <button
+                                type="button"
+                                className="mos-reset-template-btn"
+                                title="Reset to default"
+                                onClick={() => setCampaignNameTemplate(DEFAULT_CAMPAIGN_TEMPLATE)}
+                            >↺</button>
+                        </div>
+                        <p className="mos-template-hint">[SKU] [MATCH TYPE] [BID RANGE] are replaced automatically</p>
+                    </div>
+                    <div className="mos-filter-group" style={{ gridColumn: '1 / -1' }}>
                         <label className="mos-filter-label">Search Term Isolation</label>
-                        <div className="mos-radio-pill-group double">
-                            <label className={`mos-radio-pill ${mode === 'non-isolate' ? 'active' : ''}`}>
+                        <div className="mos-radio-pill-group double" style={{ display: 'flex', width: '100%', gap: '1rem' }}>
+                            <label className={`mos-radio-pill ${mode === 'non-isolate' ? 'active' : ''}`} style={{ flex: 1 }}>
                                 <input type="radio" value="non-isolate" checked={mode === 'non-isolate'} onChange={() => { setMode('non-isolate'); setPage(1); }} />
                                 Non-Isolate
                             </label>
-                            <label className={`mos-radio-pill ${mode === 'isolate' ? 'active' : ''}`}>
+                            <label className={`mos-radio-pill ${mode === 'isolate' ? 'active' : ''}`} style={{ flex: 1 }}>
                                 <input type="radio" value="isolate" checked={mode === 'isolate'} onChange={() => { setMode('isolate'); setPage(1); }} />
                                 Isolate
                             </label>
@@ -735,17 +1015,37 @@ const MissingOpportunitySheet = () => {
                     {/* Toolbar */}
                     <div>
                         <div className="gf-adgroup-toolbar" style={{ paddingTop: '0' }}>
-                            <div className="gf-adgroup-search-wrap">
-                                <Search size={15} />
-                                <input
-                                    type="text"
-                                    placeholder="Search search terms…"
-                                    value={searchTerm}
-                                    onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
-                                />
+                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                <div className="gf-adgroup-search-wrap" style={{ flex: 1, minWidth: '200px' }}>
+                                    <Search size={15} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search search terms…"
+                                        value={searchTerm}
+                                        onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
+                                    />
+                                </div>
+                                <div className="gf-adgroup-search-wrap" style={{ flex: 1, minWidth: '200px' }}>
+                                    <Search size={15} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search SKU or ASIN…"
+                                        value={skuAsinFilter}
+                                        onChange={e => { setSkuAsinFilter(e.target.value); setPage(1); }}
+                                    />
+                                </div>
                             </div>
 
-                            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <button
+                                    type="button"
+                                    className="gf-generate-bulk-btn mos-bulk-generate-btn"
+                                    onClick={handleGenerateBulk}
+                                    disabled={selectedCount === 0}
+                                >
+                                    <Download size={15} />
+                                    Generate Bulk File{selectedCount > 0 ? ` (${selectedCount})` : ''}
+                                </button>
                                 <button
                                     type="button"
                                     className="gf-generate-bulk-btn"
@@ -773,7 +1073,16 @@ const MissingOpportunitySheet = () => {
                                         <tr>
                                             <ThFilter col="customerSearchTerm" label="Search Term" />
                                             <ThFilter col="keywordText" label="Keyword Text" />
-                                            <th className="mos-th mos-th-triggers">Triggers (E/P/B)</th>
+                                            <th className="mos-th mos-th-triggers">
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                                                    <span>Triggers</span>
+                                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                                        <button className="mos-trigger-all-btn exact" onClick={(e) => { e.stopPropagation(); handleToggleAllFor('exact'); }} title="Toggle All Exact">Exact</button>
+                                                        <button className="mos-trigger-all-btn phrase" onClick={(e) => { e.stopPropagation(); handleToggleAllFor('phrase'); }} title="Toggle All Phrase">Phrase</button>
+                                                        <button className="mos-trigger-all-btn broad" onClick={(e) => { e.stopPropagation(); handleToggleAllFor('broad'); }} title="Toggle All Broad">Broad</button>
+                                                    </div>
+                                                </div>
+                                            </th>
                                             <ThSort col="orders" label="Orders" />
                                             <ThSort col="conversionRate" label="CVR %" />
                                             <ThSort col="acos" label="ACOS" />
@@ -785,7 +1094,7 @@ const MissingOpportunitySheet = () => {
                                     <tbody>
                                         {pageRows.length === 0 ? (
                                             <tr>
-                                                <td colSpan={10} className="gf-optimizer-td gf-empty-cell">
+                                                <td colSpan={9} className="gf-optimizer-td gf-empty-cell">
                                                     {allRows.length > 0 ? 'No opportunities match your filters.' : 'Upload a file above to see results.'}
                                                 </td>
                                             </tr>

@@ -40,17 +40,37 @@ body:not(.light-mode) .mos-page-header {
 /* ─── Filter Panel ────────────────────────────────────────────────────────── */
 
 .mos-filter-panel {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 1.2rem;
-    flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: start;
 }
 
 .mos-filter-group {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    min-width: 140px;
+}
+
+/* Ensure the full width groups span multiple columns on larger screens */
+@media (min-width: 900px) {
+    .mos-filter-panel {
+        grid-template-columns: repeat(12, 1fr);
+    }
+    .mos-filter-group:nth-child(1),
+    .mos-filter-group:nth-child(2),
+    .mos-filter-group:nth-child(3) {
+        grid-column: span 2;
+    }
+    .mos-filter-group:nth-child(4) { /* SKU Search */
+        grid-column: span 3;
+    }
+    .mos-filter-group:nth-child(5) { /* Isolation */
+        grid-column: span 3;
+    }
+    .mos-filter-group:nth-child(6) { /* Campaign Name Temple */
+        grid-column: span 12;
+    }
 }
 
 .mos-filter-label {
@@ -64,7 +84,94 @@ body:not(.light-mode) .mos-page-header {
 .mos-filter-input {
     text-align: left !important;
     padding: 0.6rem 0.75rem !important;
+    height: 38px;
+    box-sizing: border-box;
 }
+
+
+.mos-reset-template-btn {
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.mos-reset-template-btn:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.mos-template-hint {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    opacity: 0.75;
+    line-height: 1.4;
+}
+
+/* Generate Bulk File CTA button — primary accent */
+.mos-bulk-generate-btn {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 14px rgba(229, 9, 20, 0.35) !important;
+    transition: opacity 0.2s, transform 0.15s !important;
+}
+
+.mos-bulk-generate-btn:hover:not(:disabled) {
+    opacity: 0.9 !important;
+    transform: translateY(-1px) !important;
+}
+
+.mos-bulk-generate-btn:disabled {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+}
+
+/* Select All / Clear All Buttons */
+.mos-select-all-btn {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(21, 128, 61, 0.15)) !important;
+    border-color: rgba(34, 197, 94, 0.3) !important;
+    color: #22c55e !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+
+.mos-select-all-btn:hover {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(21, 128, 61, 0.25)) !important;
+    border-color: rgba(34, 197, 94, 0.5) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15) !important;
+}
+
+.mos-clear-all-btn {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: var(--color-text-muted) !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+
+.mos-clear-all-btn:hover:not(:disabled) {
+    color: var(--color-text) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.mos-clear-all-btn:disabled {
+    opacity: 0.2 !important;
+}
+
 
 /* ─── Mode Selector ───────────────────────────────────────────────────────── */
 
@@ -143,6 +250,32 @@ body:not(.light-mode) .mos-mode-select:focus {
 .mos-th-triggers {
     min-width: 320px;
 }
+
+.mos-trigger-all-btn {
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    min-width: 90px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mos-trigger-all-btn:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+.mos-trigger-all-btn.exact:hover { border-color: #3b82f6; color: #3b82f6; }
+.mos-trigger-all-btn.phrase:hover { border-color: #eab308; color: #eab308; }
+.mos-trigger-all-btn.broad:hover { border-color: #22c55e; color: #22c55e; }
 
 .mos-trigger-col {
     display: inline-flex;
