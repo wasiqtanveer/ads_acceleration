@@ -42,6 +42,38 @@ const TOOL_REGISTRY = {
         toolUrl: '/tools/campaign-builder',
         successMessage: "You're in! Access the Campaign Builder now.",
     },
+    'graduation-finder': {
+        badge: '🚀 Free Access — Graduation Finder',
+        headline: (
+            <>
+                GRADUATE YOUR SEARCH TERMS TO <span className="highlight-yellow">EXACT KEYWORDS</span> via AUTOMATION
+            </>
+        ),
+        subText: (
+            <p className="lead-sub-text">
+                Find converting search terms and graduate them for better control and efficiency.
+            </p>
+        ),
+        ctaLabel: 'Get Free Access',
+        toolUrl: '/tools/graduation-finder',
+        successMessage: "You're in! Access the Graduation Finder now.",
+    },
+    'missing-opportunity-sheet': {
+        badge: '🚀 Free Access — Missing Opportunity Sheet',
+        headline: (
+            <>
+                UNCOVER HIDDEN <span className="highlight-yellow">KEYWORD GAPS</span> IN YOUR SP CAMPAIGNS
+            </>
+        ),
+        subText: (
+            <p className="lead-sub-text">
+                Surface search terms with no Exact or Phrase targeting and fix your keyword coverage.
+            </p>
+        ),
+        ctaLabel: 'Get Free Access',
+        toolUrl: '/tools/missing-opportunity-sheet',
+        successMessage: "You're in! Access the Missing Opportunity Sheet now.",
+    },
 };
 
 const DEFAULT_TOOL = TOOL_REGISTRY['free-tool'];

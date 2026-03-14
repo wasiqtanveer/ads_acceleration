@@ -8,7 +8,8 @@ import ToolsIndex from './pages/Tools/ToolsIndex';
 import BiddingOptimizer from './pages/Tools/BiddingOptimizer';
 import CampaignBuilder from './pages/Tools/CampaignBuilder';
 import NgramAnalyzer from './pages/Tools/NgramAnalyzer';
-import MissingOpportunityGenerator from './pages/Tools/MissingOpportunityGenerator';
+import GraduationFinder from './pages/Tools/GraduationFinder';
+import MissingOpportunitySheet from './pages/Tools/MissingOpportunitySheet';
 import Login from './pages/Auth/Login';
 import Pricing from './pages/Home/Pricing';
 import LeadCapturePage from './pages/Lead/LeadCapturePage';
@@ -44,7 +45,8 @@ function App() {
             <Route path="/tools/bidding-optimizer" element={<BiddingOptimizer />} />
             <Route path="/tools/campaign-builder" element={<CampaignBuilder />} />
             <Route path="/tools/ngram-analyzer" element={<NgramAnalyzer />} />
-            <Route path="/tools/missing-opportunity-generator" element={<MissingOpportunityGenerator />} />
+            <Route path="/tools/graduation-finder" element={<GraduationFinder />} />
+            <Route path="/tools/missing-opportunity-sheet" element={<MissingOpportunitySheet />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/faq" element={<Home />} />
             <Route path="/login" element={<Login />} />

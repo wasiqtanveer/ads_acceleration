@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rocket, Calculator, Image as ImageIcon, LineChart, Target, Search, ListFilter } from 'lucide-react';
+import { Rocket, Calculator, Image as ImageIcon, LineChart, Target, Search, ListFilter, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import './ToolsIndex.css';
 
@@ -32,11 +32,20 @@ const toolsList = [
         isReady: true
     },
     {
-        id: 'missing-opportunity-generator',
-        title: 'Missing Opportunity Sheet Generator',
+        id: 'graduation-finder',
+        title: 'Graduation Finder',
         description: 'Find converting search terms not yet targeted as keywords and export both opportunity and Amazon bulk sheets.',
         icon: <ListFilter size={32} color="white" />,
-        path: '/tools/missing-opportunity-generator',
+        path: '/tools/graduation-finder',
+        badge: 'New',
+        isReady: false
+    },
+    {
+        id: 'missing-opportunity-sheet',
+        title: 'Missing Opportunity Sheet',
+        description: 'Identify SP search terms with no Exact or Phrase targeting — surface keyword gaps with trigger counts and opportunity strength.',
+        icon: <TrendingUp size={32} color="white" />,
+        path: '/tools/missing-opportunity-sheet',
         badge: 'New',
         isReady: false
     },

@@ -20,7 +20,7 @@ import * as XLSX from 'xlsx';
 import RegistrationModal from '../../components/ui/RegistrationModal';
 import ConsultationCard from '../../components/ui/ConsultationCard';
 import useRegistration from '../../context/useRegistration';
-import './MissingOpportunityGenerator.css';
+import './GraduationFinder.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -215,7 +215,7 @@ function buildBulkRows(candidates, candidateSettings, adGroupSettings, startingB
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const MissingOpportunityGenerator = () => {
+const GraduationFinder = () => {
     const { isRegistered } = useRegistration();
     const [showRegModal, setShowRegModal] = useState(false);
     const pendingActionRef = useRef(null);
@@ -753,7 +753,7 @@ const MissingOpportunityGenerator = () => {
                 <div className="gf-icon-ring">
                     <GraduationCap size={36} color="var(--color-primary)" />
                 </div>
-                <h1>Missing Opportunity Generator</h1>
+                <h1>Graduation Finder</h1>
                 <p className="text-muted gf-subtitle">
                     Identify high-performing search terms ready to graduate from broad match to exact match keywords for better control and efficiency.
                 </p>
@@ -768,7 +768,7 @@ const MissingOpportunityGenerator = () => {
                 >
                     <div className="gf-info-toggle-left">
                         <Info size={16} />
-                        <span>Missing Opportunity Generator</span>
+                        <span>Graduation Finder</span>
                     </div>
                     <ChevronDown size={16} className={`gf-chevron ${infoOpen ? 'open' : ''}`} />
                 </button>
@@ -1446,10 +1446,10 @@ const MissingOpportunityGenerator = () => {
                 isOpen={showRegModal}
                 onClose={() => { setShowRegModal(false); pendingActionRef.current = null; }}
                 onSuccess={handleRegSuccess}
-                toolSlug="missing-opportunity-generator"
+                toolSlug="graduation-finder"
             />
         </section>
     );
 };
 
-export default MissingOpportunityGenerator;
+export default GraduationFinder;
