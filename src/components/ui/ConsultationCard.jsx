@@ -1,9 +1,33 @@
 import React from 'react';
 import { Calendar, Linkedin, Rocket, Clock, ArrowRight } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import FarhanImage from '../../assets/images/farhan.png';
 import './ConsultationCard.css';
 
 const ConsultationCard = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const scrollToTestimonials = (e) => {
+        e.preventDefault();
+        
+        if (location.pathname === '/') {
+            const element = document.getElementById('testimonials');
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else {
+            // Navigate to home first, then scroll after the page renders
+            navigate('/');
+            setTimeout(() => {
+                const element = document.getElementById('testimonials');
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 100);
+        }
+    };
+
     return (
         <div className="consultation-card-wrapper">
             <div className="consultation-grid">
@@ -95,6 +119,12 @@ const ConsultationCard = () => {
                 </div>
 
             </div>
+            
+            {/* Full Width Testimonial Banner/Button */}
+            <a href="#testimonials" onClick={scrollToTestimonials} className="consultation-testimonial-banner">
+                <span>What others think of us</span>
+                <ArrowRight size={18} className="banner-arrow" />
+            </a>
         </div>
     );
 };

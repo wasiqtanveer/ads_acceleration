@@ -149,7 +149,7 @@ const buildMosBulkRows = (enrichedRows, selectedMatches, campaignNameTemplate, i
             }));
 
             // Keyword row
-            const ktext = mt === 'broad' ? keyword.split(/\s+/).map(w => `+${w}`).join(' ') : keyword;
+            const ktext = keyword;
             rows.push(mkRow({
                 Product: 'Sponsored Products', Entity: 'Keyword', Operation: 'Create',
                 'Campaign Id': campaignName, 'Ad Group Id': agName,
@@ -731,7 +731,7 @@ const MissingOpportunitySheet = () => {
                     onClick={(e) => { e.stopPropagation(); triggers.exact === 0 && toggleMatchSelection(id, 'exact'); }}
                     disabled={triggers.exact > 0}
                 >
-                    Exact ({triggers.exact})
+                    Exact{triggers.exact > 0 ? ` (${triggers.exact})` : ''}
                 </button>
                 <button 
                     type="button"
@@ -739,7 +739,7 @@ const MissingOpportunitySheet = () => {
                     onClick={(e) => { e.stopPropagation(); triggers.phrase === 0 && toggleMatchSelection(id, 'phrase'); }}
                     disabled={triggers.phrase > 0}
                 >
-                    Phrase ({triggers.phrase})
+                    Phrase{triggers.phrase > 0 ? ` (${triggers.phrase})` : ''}
                 </button>
                 <button 
                     type="button"
@@ -747,7 +747,7 @@ const MissingOpportunitySheet = () => {
                     onClick={(e) => { e.stopPropagation(); triggers.broad === 0 && toggleMatchSelection(id, 'broad'); }}
                     disabled={triggers.broad > 0}
                 >
-                    Broad ({triggers.broad})
+                    Broad{triggers.broad > 0 ? ` (${triggers.broad})` : ''}
                 </button>
             </span>
         );
@@ -909,7 +909,7 @@ const MissingOpportunitySheet = () => {
                         />
                     </div>
                     <div className="mos-filter-group">
-                        <label className="mos-filter-label">Orders ≥ (%)</label>
+                        <label className="mos-filter-label">Orders ≥</label>
                         <input
                             type="number"
                             className="gf-criteria-input mos-filter-input"
@@ -1136,7 +1136,11 @@ const MissingOpportunitySheet = () => {
                                         <tr key={i} className={i % 2 === 0 ? 'mos-preview-even' : ''}>
                                             <td>{row.customerSearchTerm}</td>
                                             <td>{row.keywordText || '—'}</td>
-                                            <td>Exact({row.triggers.exact}) Phrase({row.triggers.phrase}) Broad({row.triggers.broad})</td>
+                                            <td>
+                                                Exact{row.triggers.exact > 0 ? ` (${row.triggers.exact})` : ''} 
+                                                Phrase{row.triggers.phrase > 0 ? ` (${row.triggers.phrase})` : ''} 
+                                                Broad{row.triggers.broad > 0 ? ` (${row.triggers.broad})` : ''}
+                                            </td>
                                             <td>{row.orders || '—'}</td>
                                             <td>{row.conversionRate > 0 ? `${row.conversionRate.toFixed(1)}%` : '—'}</td>
                                             <td>{row.acos > 0 ? `${row.acos.toFixed(1)}%` : '—'}</td>
@@ -1154,11 +1158,8 @@ const MissingOpportunitySheet = () => {
                             )}
                         </div>
                         <div className="mos-preview-footer">
-                            <button type="button" className="gf-generate-bulk-btn" onClick={handleExportExcel}>
-                                <Download size={15} /> Export Excel
-                            </button>
-                            <button type="button" className="gf-generate-bulk-btn mos-csv-btn" onClick={handleExportCsv}>
-                                <Download size={15} /> Export CSV
+                            <button type="button" className="gf-generate-bulk-btn mos-bulk-generate-btn" onClick={handleGenerateBulk} disabled={selectedCount === 0}>
+                                <Download size={15} /> Generate Bulk File
                             </button>
                         </div>
                     </div>

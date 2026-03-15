@@ -209,9 +209,19 @@ html.light-mode::-webkit-scrollbar-thumb:hover {
 
 /* Container */
 .container {
-  max-width: 1200px;
+  max-width: 1536px;
+  width: 85%;
   margin: 0 auto;
   padding: 0 1.5rem;
+}
+
+/* Utility classes */
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: var(--color-text-muted);
 }
 
 /* Headings */

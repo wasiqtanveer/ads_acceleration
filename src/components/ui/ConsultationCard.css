@@ -364,3 +364,46 @@ body:not(.light-mode) .consultation-arrow-btn {
         justify-content: center;
     }
 }
+
+/* ─── Testimonial Banner ──────────────────────────────────────────────────── */
+
+.consultation-testimonial-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 204, 0, 0.03) 50%, transparent 100%);
+    padding: 1.25rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-top: 1px solid var(--color-border);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+body.light-mode .consultation-testimonial-banner {
+    background: linear-gradient(90deg, transparent 0%, rgba(229, 9, 20, 0.03) 50%, transparent 100%);
+}
+
+.consultation-testimonial-banner:hover {
+    color: var(--color-primary);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 204, 0, 0.1) 50%, transparent 100%);
+}
+
+body.light-mode .consultation-testimonial-banner:hover {
+    color: var(--color-primary);
+    background: linear-gradient(90deg, transparent 0%, rgba(229, 9, 20, 0.1) 50%, transparent 100%);
+}
+
+.banner-arrow {
+    transition: transform 0.3s ease;
+}
+
+.consultation-testimonial-banner:hover .banner-arrow {
+    transform: translateX(6px);
+}
