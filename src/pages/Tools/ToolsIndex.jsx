@@ -10,17 +10,8 @@ const toolsList = [
         description: 'Auto-generate bulk upload files for Amazon Sponsored Products campaigns.',
         icon: <Target size={32} color="white" />,
         path: '/tools/campaign-builder',
-        badge: 'New',
+        badge: 'new',
         isReady: true
-    },
-    {
-        id: 'bidding-optimizer',
-        title: 'Bidding Optimizer',
-        description: 'Auto-adjust keyword bids using smart Inch Up and RPC targeting to maximize PPC profitability.',
-        icon: <Calculator size={32} color="white" />,
-        path: '/tools/bidding-optimizer',
-        badge: 'New',
-        isReady: false
     },
     {
         id: 'ngram-analyzer',
@@ -32,21 +23,30 @@ const toolsList = [
         isReady: true
     },
     {
-        id: 'graduation-finder',
-        title: 'Graduation Finder',
-        description: 'Find converting search terms not yet targeted as keywords and export both opportunity and Amazon bulk sheets.',
-        icon: <ListFilter size={32} color="white" />,
-        path: '/tools/graduation-finder',
-        badge: 'New',
-        isReady: false
-    },
-    {
         id: 'missing-opportunity-sheet',
         title: 'Missing Opportunity Sheet',
         description: 'Identify SP search terms with no Exact or Phrase targeting — surface keyword gaps with trigger counts and opportunity strength.',
         icon: <TrendingUp size={32} color="white" />,
         path: '/tools/missing-opportunity-sheet',
-        badge: 'New',
+        badge: "Launching next",
+        isReady: false
+    },
+    {
+        id: 'bidding-optimizer',
+        title: 'Bidding Optimizer',
+        description: 'Auto-adjust keyword bids using smart Inch Up and RPC targeting to maximize PPC profitability.',
+        icon: <Calculator size={32} color="white" />,
+        path: '/tools/bidding-optimizer',
+        badge: null,
+        isReady: false
+    },
+    {
+        id: 'graduation-finder',
+        title: 'Graduation Finder',
+        description: 'Find converting search terms not yet targeted as keywords and export both opportunity and Amazon bulk sheets.',
+        icon: <ListFilter size={32} color="white" />,
+        path: '/tools/graduation-finder',
+        badge: null,
         isReady: false
     },
     {
