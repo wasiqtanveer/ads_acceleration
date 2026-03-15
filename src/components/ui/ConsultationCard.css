@@ -215,7 +215,14 @@ body.light-mode .consultation-image-container {
     width: 100%;
     height: 100%;
     border-radius: inherit;
-    /* Optional: When they add an img tag here, it should be width: 100%, height: 100%, object-fit: cover, border-radius: inherit */
+    overflow: hidden;
+}
+
+.consultation-image-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
 }
 
 /* Floating Name Card */

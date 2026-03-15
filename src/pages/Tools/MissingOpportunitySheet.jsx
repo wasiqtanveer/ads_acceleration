@@ -98,11 +98,17 @@ const buildMosBulkRows = (enrichedRows, selectedMatches, campaignNameTemplate, i
     const date = fmtDate();
     const matchTypeLabels = { exact: 'Exact', phrase: 'Phrase', broad: 'Broad' };
 
+    const processedKeys = new Set();
+
     enrichedRows.forEach(row => {
         const termKey = row.customerSearchTermKey;
+        if (processedKeys.has(termKey)) return;
+
         const selected = selectedMatches[termKey] || {};
         const activeMatchTypes = Object.entries(selected).filter(([, v]) => v).map(([k]) => k);
         if (activeMatchTypes.length === 0) return;
+
+        processedKeys.add(termKey);
 
         const sku = row.skus ? row.skus.split(',')[0].trim() : '';
         const keyword = row.customerSearchTerm;
@@ -298,9 +304,8 @@ const MissingOpportunitySheet = () => {
     }, []);
 
     const buildKeywordIndex = useCallback((rawRows) => {
-        // Count how many times each search term appears as a keyword text
-        // per match type, across the ENTIRE dataset (no filters applied)
-        const idx = new Map();
+        // Count how many unique campaigns each search term is targeted in per match type
+        const tempIdx = new Map();
         rawRows.forEach(row => {
             const kwText = canonical(
                 getVal(row, 'Keyword text', 'Keyword Text', 'Keyword', 'keyword text') || ''
@@ -309,15 +314,28 @@ const MissingOpportunitySheet = () => {
             const mt = canonical(
                 getVal(row, 'Match type', 'Match Type', 'match type') || ''
             );
-            if (!idx.has(kwText)) {
-                idx.set(kwText, { exact: 0, phrase: 0, broad: 0 });
+            const campId = String(getVal(row, 'Campaign ID', 'campaign_id', 'Campaign Id', 'campaign id') || '').trim();
+            
+            if (!tempIdx.has(kwText)) {
+                tempIdx.set(kwText, { exact: new Set(), phrase: new Set(), broad: new Set() });
             }
-            const entry = idx.get(kwText);
-            if (mt === 'exact') entry.exact++;
-            else if (mt === 'phrase') entry.phrase++;
-            else if (mt === 'broad') entry.broad++;
+            const entry = tempIdx.get(kwText);
+            if (mt === 'exact') entry.exact.add(campId);
+            else if (mt === 'phrase') entry.phrase.add(campId);
+            else if (mt === 'broad') entry.broad.add(campId);
         });
-        return idx;
+
+        // Convert the Sets into integers for the UI
+        const finalIdx = new Map();
+        tempIdx.forEach((val, key) => {
+            finalIdx.set(key, {
+                exact: val.exact.size,
+                phrase: val.phrase.size,
+                broad: val.broad.size
+            });
+        });
+        
+        return finalIdx;
     }, []);
 
     const normalizeRows = useCallback((rawRows, productMap) => {
@@ -642,7 +660,7 @@ const MissingOpportunitySheet = () => {
 
     const doGenerateBulk = useCallback(() => {
         const isolate = mode === 'isolate';
-        const rows = buildMosBulkRows(enrichedRows, selectedMatches, campaignNameTemplate, isolate);
+        const rows = buildMosBulkRows(sortedRows, selectedMatches, campaignNameTemplate, isolate);
         if (rows.length === 0) {
             alert('No triggers selected. Click Exact / Phrase / Broad buttons in the results table to select keywords to generate.');
             return;

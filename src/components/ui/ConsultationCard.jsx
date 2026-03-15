@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, Linkedin, Rocket, Clock, ArrowRight } from 'lucide-react';
+import FarhanImage from '../../assets/images/farhan.png';
 import './ConsultationCard.css';
 
 const ConsultationCard = () => {
@@ -22,7 +23,7 @@ const ConsultationCard = () => {
                     </h2>
 
                     <p className="consultation-subtext">
-                        Rule-Based Automation, Profit & Organic Ranking. Learn how 8-figure brands are scaling.
+                        Rule-Based Automation, Profit & Organic Ranking — Supporting 8-Figure Brands with an In-House PPC Team.
                     </p>
 
                     <div className="consultation-details">
@@ -69,17 +70,20 @@ const ConsultationCard = () => {
                 <div className="consultation-right">
                     <div className="consultation-image-container">
                         {/* Placeholder for future image */}
-                        <div className="consultation-image-placeholder"></div>
+                        <div className="consultation-image-placeholder">
+                            {FarhanImage && <img src={FarhanImage} alt="Farhan Waqar" />}
+                        </div>
+
                         
                         {/* The floating Name Card */}
                         <div className="consultation-name-card">
                             <strong>Farhan Waqar</strong>
-                            <span>Amazon Advertising Expert | CEO Ads Acceleration</span>
+                            <span>Founder of Ads Acceleration - Helping Sellers with Ads Management</span>
                         </div>
 
                         {/* Arrow button overlapping the right edge */}
                         <a 
-                            href="https://calendly.com/" 
+                            href="https://calendly.com/m-farhanwaqar/30min" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="consultation-arrow-btn"
