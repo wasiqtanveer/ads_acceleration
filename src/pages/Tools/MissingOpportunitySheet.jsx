@@ -98,17 +98,10 @@ const buildMosBulkRows = (enrichedRows, selectedMatches, campaignNameTemplate, i
     const date = fmtDate();
     const matchTypeLabels = { exact: 'Exact', phrase: 'Phrase', broad: 'Broad' };
 
-    const processedKeys = new Set();
-
     enrichedRows.forEach(row => {
-        const termKey = row.customerSearchTermKey;
-        if (processedKeys.has(termKey)) return;
-
-        const selected = selectedMatches[termKey] || {};
+        const selected = selectedMatches[row.id] || {};
         const activeMatchTypes = Object.entries(selected).filter(([, v]) => v).map(([k]) => k);
         if (activeMatchTypes.length === 0) return;
-
-        processedKeys.add(termKey);
 
         const sku = row.skus ? row.skus.split(',')[0].trim() : '';
         const keyword = row.customerSearchTerm;
@@ -340,7 +333,7 @@ const MissingOpportunitySheet = () => {
 
     const normalizeRows = useCallback((rawRows, productMap) => {
         return rawRows
-            .map((row) => {
+            .map((row, index) => {
                 const bid = getVal(row, 'Bid', 'bid');
                 // Only include rows where Bid has a value
                 if (bid === '' || bid === null || bid === undefined) return null;
@@ -389,6 +382,7 @@ const MissingOpportunitySheet = () => {
                 }
 
                 return {
+                    id: index.toString(),
                     customerSearchTerm,
                     customerSearchTermKey,
                     keywordText,
@@ -600,56 +594,6 @@ const MissingOpportunitySheet = () => {
         return sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
     };
 
-    // ── Export ────────────────────────────────────────────────────────────────
-
-    const buildExportData = useCallback(() => {
-        return sortedRows.map(r => ({
-            'Search Term': r.customerSearchTerm,
-            'Campaign Name': r.campaignName,
-            'Advertised SKU': r.skus || '—',
-            'Advertised ASIN': r.asins || '—',
-            'Keyword Text': r.keywordText,
-            'Match Type': r.matchType,
-            'Orders': r.orders,
-            'Conversion Rate (%)': r.conversionRate.toFixed(2),
-            'ACOS (%)': r.acos.toFixed(2),
-            'Exact Trigger Count': r.triggers.exact,
-            'Phrase Trigger Count': r.triggers.phrase,
-            'Broad Trigger Count': r.triggers.broad,
-            'Opportunity Type': r.missingMatchTypes,
-            'Bid': r.bid.toFixed(2),
-            'Opportunity Strength': getStrength(r, acosFilter),
-        }));
-    }, [sortedRows, acosFilter]);
-
-    const doExportExcel = useCallback(() => {
-        const data = buildExportData();
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Missing Opportunities');
-        XLSX.writeFile(wb, 'Missing_Opportunity_Sheet.xlsx');
-    }, [buildExportData]);
-
-    const doExportCsv = useCallback(() => {
-        const data = buildExportData();
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Missing Opportunities');
-        XLSX.writeFile(wb, 'Missing_Opportunity_Sheet.csv');
-    }, [buildExportData]);
-
-    const handleExportExcel = () => {
-        if (isRegistered) { doExportExcel(); return; }
-        pendingActionRef.current = 'excel';
-        setShowRegModal(true);
-    };
-
-    const handleExportCsv = () => {
-        if (isRegistered) { doExportCsv(); return; }
-        pendingActionRef.current = 'csv';
-        setShowRegModal(true);
-    };
-
     // ── Bulk Campaign Generation ───────────────────────────────────────────────
 
     const selectedCount = useMemo(() => {
@@ -680,9 +624,7 @@ const MissingOpportunitySheet = () => {
 
     const handleRegSuccess = () => {
         setShowRegModal(false);
-        if (pendingActionRef.current === 'excel') doExportExcel();
-        else if (pendingActionRef.current === 'csv') doExportCsv();
-        else if (pendingActionRef.current === 'bulk') doGenerateBulk();
+        if (pendingActionRef.current === 'bulk') doGenerateBulk();
         pendingActionRef.current = null;
     };
 
@@ -692,8 +634,7 @@ const MissingOpportunitySheet = () => {
             let allSelected = true;
             sortedRows.forEach(row => {
                 if (row.triggers[type] === 0) {
-                    const tk = row.customerSearchTermKey;
-                    if (!next[tk] || !next[tk][type]) {
+                    if (!next[row.id] || !next[row.id][type]) {
                         allSelected = false;
                     }
                 }
@@ -701,9 +642,8 @@ const MissingOpportunitySheet = () => {
 
             sortedRows.forEach(row => {
                 if (row.triggers[type] === 0) {
-                    const tk = row.customerSearchTermKey;
                     // Ensure deep copy of the nested object for this search term
-                    next[tk] = { ...next[tk], [type]: !allSelected };
+                    next[row.id] = { ...next[row.id], [type]: !allSelected };
                 }
             });
             return next;
@@ -781,14 +721,14 @@ const MissingOpportunitySheet = () => {
     }, []);
 
     const TriggerCounts = ({ row }) => {
-        const { triggers, customerSearchTermKey } = row;
-        const selected = selectedMatches[customerSearchTermKey] || {};
+        const { triggers, id } = row;
+        const selected = selectedMatches[id] || {};
         return (
             <span className="mos-trigger-col">
                 <button
                     type="button" 
                     className={`mos-trigger-btn ${triggers.exact > 0 ? 'mos-trigger-locked' : (selected.exact ? 'mos-trigger-active' : 'mos-trigger-available')}`}
-                    onClick={(e) => { e.stopPropagation(); triggers.exact === 0 && toggleMatchSelection(customerSearchTermKey, 'exact'); }}
+                    onClick={(e) => { e.stopPropagation(); triggers.exact === 0 && toggleMatchSelection(id, 'exact'); }}
                     disabled={triggers.exact > 0}
                 >
                     Exact ({triggers.exact})
@@ -796,7 +736,7 @@ const MissingOpportunitySheet = () => {
                 <button 
                     type="button"
                     className={`mos-trigger-btn ${triggers.phrase > 0 ? 'mos-trigger-locked' : (selected.phrase ? 'mos-trigger-active' : 'mos-trigger-available')}`}
-                    onClick={(e) => { e.stopPropagation(); triggers.phrase === 0 && toggleMatchSelection(customerSearchTermKey, 'phrase'); }}
+                    onClick={(e) => { e.stopPropagation(); triggers.phrase === 0 && toggleMatchSelection(id, 'phrase'); }}
                     disabled={triggers.phrase > 0}
                 >
                     Phrase ({triggers.phrase})
@@ -804,7 +744,7 @@ const MissingOpportunitySheet = () => {
                 <button 
                     type="button"
                     className={`mos-trigger-btn ${triggers.broad > 0 ? 'mos-trigger-locked' : (selected.broad ? 'mos-trigger-active' : 'mos-trigger-available')}`}
-                    onClick={(e) => { e.stopPropagation(); triggers.broad === 0 && toggleMatchSelection(customerSearchTermKey, 'broad'); }}
+                    onClick={(e) => { e.stopPropagation(); triggers.broad === 0 && toggleMatchSelection(id, 'broad'); }}
                     disabled={triggers.broad > 0}
                 >
                     Broad ({triggers.broad})
@@ -856,9 +796,9 @@ const MissingOpportunitySheet = () => {
                                 <ul>
                                     <li>Auto-selects the <strong>SP Search Term Report</strong> sheet</li>
                                     <li>Compares search terms against all existing keywords</li>
-                                    <li>Shows trigger counts (E/P/B) from the <em>full dataset</em></li>
+                                    <li>Shows trigger counts (E/P/B) mapped by unique campaigns</li>
                                     <li>Highlights missing match types and opportunity strength</li>
-                                    <li>Export to Excel or CSV for bulk upload</li>
+                                    <li>Generate a bulk campaign creation file specifically for selected terms</li>
                                 </ul>
                             </div>
                             <div className="gf-info-col">
@@ -1063,22 +1003,6 @@ const MissingOpportunitySheet = () => {
                                 >
                                     <Download size={15} />
                                     Generate Bulk File{selectedCount > 0 ? ` (${selectedCount})` : ''}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="gf-generate-bulk-btn"
-                                    onClick={handleExportExcel}
-                                    disabled={!hasResults}
-                                >
-                                    <Download size={15} /> Export Excel
-                                </button>
-                                <button
-                                    type="button"
-                                    className="gf-generate-bulk-btn mos-csv-btn"
-                                    onClick={handleExportCsv}
-                                    disabled={!hasResults}
-                                >
-                                    <Download size={15} /> Export CSV
                                 </button>
                             </div>
                         </div>
