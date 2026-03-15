@@ -161,13 +161,16 @@ const buildMosBulkRows = (enrichedRows, selectedMatches, campaignNameTemplate, i
 
             // Isolation Logic (Inject Negative Keywords)
             if (isolate) {
-                if (mt === 'phrase' && activeMatchTypes.includes('exact')) {
+                const hasExact = activeMatchTypes.includes('exact') || (row.triggers && row.triggers.exact > 0);
+                const hasPhrase = activeMatchTypes.includes('phrase') || (row.triggers && row.triggers.phrase > 0);
+
+                if (mt === 'phrase' && hasExact) {
                     rows.push(mkRow({
                         Product: 'Sponsored Products', Entity: 'Campaign Negative Keyword', Operation: 'Create',
                         'Campaign Id': campaignName, 'Campaign Name': campaignName,
                         'Keyword Text': keyword, 'Match Type': 'negativeExact', State: 'enabled',
                     }));
-                } else if (mt === 'broad' && (activeMatchTypes.includes('exact') || activeMatchTypes.includes('phrase'))) {
+                } else if (mt === 'broad' && (hasExact || hasPhrase)) {
                     rows.push(mkRow({
                         Product: 'Sponsored Products', Entity: 'Campaign Negative Keyword', Operation: 'Create',
                         'Campaign Id': campaignName, 'Campaign Name': campaignName,
