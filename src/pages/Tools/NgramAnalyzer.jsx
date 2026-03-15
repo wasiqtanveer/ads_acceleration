@@ -27,26 +27,60 @@ function extractNGrams(words, n) {
     return grams;
 }
 
-const COLUMN_MAP = {
-    'Search term': 'searchTerm',
-    'Advertised product ID': 'asin',
-    'Impressions': 'impressions',
-    'Clicks': 'clicks',
-    'Purchases': 'purchases',
-    'Sales': 'sales',
-    'Total cost': 'cost',
-    'Units sold': 'units',
+const COLUMN_DEFINITIONS = {
+    searchTerm:  { label: 'Search term', aliases: ['search term', 'customer search term', 'query'] },
+    asin:        { label: 'Advertised product ID', aliases: ['advertised product id', 'asin', 'product id'] },
+    impressions: { label: 'Impressions', aliases: ['impressions', 'total impressions'] },
+    clicks:      { label: 'Clicks', aliases: ['clicks'] },
+    purchases:   { label: 'Purchases', aliases: ['purchases', '7 day total orders', '7-day total orders', 'orders', 'purchases'] },
+    sales:       { label: 'Sales', aliases: ['sales', '7 day total sales', '7-day total sales'] },
+    cost:        { label: 'Total cost', aliases: ['total cost', 'spend', 'cost'] },
+    units:       { label: 'Units sold', aliases: ['units sold', '7 day total units', '7-day total units', 'units'] },
+    matchType:   { label: 'Target match type', aliases: ['target match type', 'match type', 'targeting match type'] },
 };
 
-const REQUIRED_COLUMNS = ['Search term', 'Impressions', 'Clicks', 'Purchases', 'Sales', 'Total cost', 'Units sold'];
+const REQUIRED_KEYS = ['searchTerm', 'impressions', 'clicks', 'purchases', 'sales', 'cost', 'units'];
+
+function findColumnMapping(headers) {
+    const mapping = {};
+    const lowerHeaders = headers.map(h => String(h).toLowerCase().trim());
+    
+    Object.entries(COLUMN_DEFINITIONS).forEach(([key, def]) => {
+        // Find best match in aliases
+        for (const alias of def.aliases) {
+            const idx = lowerHeaders.indexOf(alias);
+            if (idx !== -1) {
+                mapping[key] = headers[idx];
+                break;
+            }
+        }
+    });
+    return mapping;
+}
 
 // Parse a value that may be a number or a string like "$1,234.56"
 function parseNum(val) {
     if (val == null || val === '') return 0;
     if (typeof val === 'number') return val;
-    const cleaned = String(val).replace(/[$€£,\s]/g, '');
+    // Handle percentages or currency
+    const cleaned = String(val).replace(/[$€£,%\s]/g, '');
     const n = parseFloat(cleaned);
     return isNaN(n) ? 0 : n;
+}
+
+// Helper: determine if a phrase is in the set of keywords by match type
+function buildKeywordSet(normalizedRows) {
+    const exact = new Set(), phrase = new Set(), broad = new Set(), auto = new Set();
+    for (const row of normalizedRows) {
+        const mt = String(row.matchType || '').toLowerCase().trim();
+        const term = String(row.searchTerm || '').toLowerCase().trim();
+        if (!term) continue;
+        if (mt === 'exact') exact.add(term);
+        else if (mt === 'phrase') phrase.add(term);
+        else if (mt === 'broad') broad.add(term);
+        else if (mt.includes('auto') || mt === '') auto.add(term);
+    }
+    return { exact, phrase, broad, auto };
 }
 
 // ======================================
@@ -68,6 +102,9 @@ const NgramAnalyzer = () => {
     const [rawRows, setRawRows] = useState([]);
     const [allAsins, setAllAsins] = useState([]);
     const [selectedAsin, setSelectedAsin] = useState('__ALL__');
+
+    // Coverage
+    const [keywordSets, setKeywordSets] = useState(null);
 
     // N-gram results: { 1: [...], 2: [...], 3: [...], 4: [...] }
     const [ngramResults, setNgramResults] = useState(null);
@@ -142,25 +179,39 @@ const NgramAnalyzer = () => {
             return;
         }
 
-        // Validate columns
+        // Validate columns using aliases
         const headers = Object.keys(data[0]);
-        const missing = REQUIRED_COLUMNS.filter(c => !headers.includes(c));
-        if (missing.length > 0) {
-            setError(`Missing required columns: ${missing.join(', ')}`);
+        const mapping = findColumnMapping(headers);
+        const missingKeys = REQUIRED_KEYS.filter(k => !mapping[k]);
+        
+        if (missingKeys.length > 0) {
+            const missingLabels = missingKeys.map(k => COLUMN_DEFINITIONS[k].label);
+            setError(`Missing required columns: ${missingLabels.join(', ')}. Please ensure your report has these headers or equivalents like 'Spend' or 'Orders'.`);
             setIsParsing(false);
             return;
         }
 
-        // Extract unique ASINs
-        const asinSet = new Set();
-        data.forEach(row => {
-            const asin = String(row['Advertised product ID'] || '').trim();
-            if (asin) asinSet.add(asin);
+        // Normalize the data so internal keys are used
+        const normalized = data.map(row => {
+            const r = {};
+            Object.entries(mapping).forEach(([key, actualHeader]) => {
+                r[key] = row[actualHeader];
+            });
+            // Carry over any other needed fields if they exist
+            return r;
         });
 
-        setRawRows(data);
+        // Extract unique ASINs
+        const asinSet = new Set();
+        normalized.forEach(row => {
+            const asinVal = String(row.asin || '').trim();
+            if (asinVal) asinSet.add(asinVal);
+        });
+
+        setRawRows(normalized);
         setAllAsins(Array.from(asinSet).sort());
         setSelectedAsin('__ALL__');
+        setKeywordSets(null);
         setIsParsing(false);
     };
 
@@ -199,15 +250,15 @@ const NgramAnalyzer = () => {
             // Step 1: Aggregate by search term
             const termMap = {};
             for (const row of filtered) {
-                const term = String(row['Search term'] || '').trim().toLowerCase();
+                const term = String(row.searchTerm || '').trim().toLowerCase();
                 if (!term) continue;
 
-                const imp = parseNum(row['Impressions']);
-                const clk = parseNum(row['Clicks']);
-                const pur = parseNum(row['Purchases']);
-                const sal = parseNum(row['Sales']);
-                const cst = parseNum(row['Total cost']);
-                const unt = parseNum(row['Units sold']);
+                const imp = parseNum(row.impressions);
+                const clk = parseNum(row.clicks);
+                const pur = parseNum(row.purchases);
+                const sal = parseNum(row.sales);
+                const cst = parseNum(row.cost);
+                const unt = parseNum(row.units);
 
                 if (!termMap[term]) termMap[term] = { i: 0, c: 0, p: 0, s: 0, co: 0, u: 0 };
                 const t = termMap[term];
@@ -267,6 +318,7 @@ const NgramAnalyzer = () => {
             }
 
             setNgramResults(results);
+            setKeywordSets(buildKeywordSet(rawRows));
             setActiveTab(1);
             setSortConfig({ key: 'cost', direction: 'desc' });
             setCurrentPage(1);
@@ -279,45 +331,125 @@ const NgramAnalyzer = () => {
     // SUMMARY STATS
     // ======================================
     const summaryStats = useMemo(() => {
-        if (!ngramResults) return null;
-        // Compute from 1-grams (which aggregate all terms)
-        const allGrams = ngramResults[1] || [];
-        // But we actually need unique search terms count — use the total freq of all 1-grams?
-        // Better: sum from any n-gram size. Use raw row counts
+        if (!rawRows || rawRows.length === 0) return null;
         const totalTerms = new Set(rawRows
-            .filter(r => selectedAsin === '__ALL__' || String(r['Advertised product ID'] || '').trim() === selectedAsin)
-            .map(r => String(r['Search term'] || '').trim().toLowerCase())
+            .filter(r => selectedAsin === '__ALL__' || String(r.asin || '').trim() === selectedAsin)
+            .map(r => String(r.searchTerm || '').trim().toLowerCase())
             .filter(Boolean)
         ).size;
 
         let totalSpend = 0, totalSales = 0, totalClicks = 0, totalImpressions = 0;
-        // Sum from raw data (not n-grams, to avoid double-counting)
         for (const row of rawRows) {
-            if (selectedAsin !== '__ALL__' && String(row['Advertised product ID'] || '').trim() !== selectedAsin) continue;
-            totalSpend += parseNum(row['Total cost']);
-            totalSales += parseNum(row['Sales']);
-            totalClicks += parseNum(row['Clicks']);
-            totalImpressions += parseNum(row['Impressions']);
+            if (selectedAsin !== '__ALL__' && String(row.asin || '').trim() !== selectedAsin) continue;
+            totalSpend += parseNum(row.cost);
+            totalSales += parseNum(row.sales);
+            totalClicks += parseNum(row.clicks);
+            totalImpressions += parseNum(row.impressions);
         }
 
         const overallAcos = totalSales > 0 ? totalSpend / totalSales : 0;
-
         return { totalTerms, totalSpend, totalSales, totalClicks, totalImpressions, overallAcos };
-    }, [ngramResults, rawRows, selectedAsin]);
+    }, [rawRows, selectedAsin]);
+
+    // ======================================
+    // COVERAGE HEALTH SCORE (#3)
+    // ======================================
+    const coverageHealth = useMemo(() => {
+        if (!rawRows || !keywordSets) return null;
+        const filtered = rawRows.filter(r =>
+            selectedAsin === '__ALL__' || String(r.asin || '').trim() === selectedAsin
+        );
+        const termSet = new Set(filtered.map(r => String(r.searchTerm || '').toLowerCase().trim()).filter(Boolean));
+        const totalTerms = termSet.size;
+        if (totalTerms === 0) return null;
+
+        let exactCount = 0, phraseCount = 0, broadCount = 0, autoOnlyCount = 0, uncoveredCount = 0;
+        for (const term of termSet) {
+            const inExact  = keywordSets.exact.has(term);
+            const inPhrase = keywordSets.phrase.has(term);
+            const inBroad  = keywordSets.broad.has(term);
+            const inAuto   = keywordSets.auto.has(term);
+            if (inExact)  exactCount++;
+            else if (inPhrase) phraseCount++;
+            else if (inBroad)  broadCount++;
+            else if (inAuto)   autoOnlyCount++;
+            else uncoveredCount++;
+        }
+        return { totalTerms, exactCount, phraseCount, broadCount, autoOnlyCount, uncoveredCount,
+            exactPct:  (exactCount / totalTerms) * 100,
+            phrasePct: (phraseCount / totalTerms) * 100,
+            broadPct:  (broadCount / totalTerms) * 100,
+            autoPct:   (autoOnlyCount / totalTerms) * 100,
+            uncoveredPct: (uncoveredCount / totalTerms) * 100,
+        };
+    }, [ngramResults, rawRows, selectedAsin, keywordSets]);
+
+    // ======================================
+    // CAMPAIGN STRUCTURE SUMMARY (#5)
+    // ======================================
+    const structureSummary = useMemo(() => {
+        if (!rawRows || rawRows.length === 0) return null;
+        const filtered = rawRows.filter(r =>
+            selectedAsin === '__ALL__' || String(r.asin || '').trim() === selectedAsin
+        );
+        const mtSpend = { exact: 0, phrase: 0, broad: 0, auto: 0, other: 0 };
+        const mtOrders = { exact: 0, phrase: 0, broad: 0, auto: 0, other: 0 };
+        let brandSpend = 0, brandSales = 0, nonBrandSpend = 0, nonBrandSales = 0;
+        
+        const termCvrs = {};
+        for (const row of filtered) {
+            const term = String(row.searchTerm || '').toLowerCase().trim();
+            if (!term) continue;
+            if (!termCvrs[term]) termCvrs[term] = { clicks: 0, purchases: 0, cost: 0, sales: 0 };
+            termCvrs[term].clicks += parseNum(row.clicks);
+            termCvrs[term].purchases += parseNum(row.purchases);
+            termCvrs[term].cost += parseNum(row.cost);
+            termCvrs[term].sales += parseNum(row.sales);
+        }
+        
+        const allCvrs = Object.values(termCvrs).filter(t => t.clicks > 5).map(t => t.purchases / t.clicks);
+        const avgCvr = allCvrs.length > 0 ? allCvrs.reduce((a, b) => a + b, 0) / allCvrs.length : 0;
+        const brandThreshold = avgCvr * 2.5;
+
+        for (const [term, td] of Object.entries(termCvrs)) {
+            const termCvr = td.clicks > 0 ? td.purchases / td.clicks : 0;
+            if (td.clicks > 5 && termCvr >= brandThreshold) {
+                brandSpend += td.cost; brandSales += td.sales;
+            } else {
+                nonBrandSpend += td.cost; nonBrandSales += td.sales;
+            }
+        }
+
+        for (const row of filtered) {
+            const mt = String(row.matchType || '').toLowerCase().trim();
+            const cost = parseNum(row.cost);
+            const orders = parseNum(row.purchases);
+            if (mt === 'exact') { mtSpend.exact += cost; mtOrders.exact += orders; }
+            else if (mt === 'phrase') { mtSpend.phrase += cost; mtOrders.phrase += orders; }
+            else if (mt === 'broad') { mtSpend.broad += cost; mtOrders.broad += orders; }
+            else if (mt.includes('auto') || mt === '') { mtSpend.auto += cost; mtOrders.auto += orders; }
+            else { mtSpend.other += cost; mtOrders.other += orders; }
+        }
+        const totalSpend = Object.values(mtSpend).reduce((a, b) => a + b, 0);
+        return { mtSpend, mtOrders, totalSpend, brandSpend, brandSales, nonBrandSpend, nonBrandSales,
+            brandPct:    totalSpend > 0 ? (brandSpend / totalSpend) * 100 : 0,
+            nonBrandPct: totalSpend > 0 ? (nonBrandSpend / totalSpend) * 100 : 0,
+        };
+    }, [rawRows, selectedAsin]);
 
     // ======================================
     // GLOBAL INSIGHTS (computed from raw rows)
     // ======================================
     const globalInsights = useMemo(() => {
-        if (!ngramResults) return null;
+        if (!rawRows || rawRows.length === 0) return null;
         const termMap = {};
         for (const row of rawRows) {
-            if (selectedAsin !== '__ALL__' && String(row['Advertised product ID'] || '').trim() !== selectedAsin) continue;
-            const term = String(row['Search term'] || '').trim().toLowerCase();
+            if (selectedAsin !== '__ALL__' && String(row.asin || '').trim() !== selectedAsin) continue;
+            const term = String(row.searchTerm || '').trim().toLowerCase();
             if (!term) continue;
             if (!termMap[term]) termMap[term] = { orders: 0, cost: 0 };
-            termMap[term].orders += parseNum(row['Purchases']);
-            termMap[term].cost += parseNum(row['Total cost']);
+            termMap[term].orders += parseNum(row.purchases);
+            termMap[term].cost += parseNum(row.cost);
         }
         let convertingSpend = 0, nonConvertingSpend = 0, convertingCount = 0, nonConvertingCount = 0;
         for (const d of Object.values(termMap)) {
@@ -497,6 +629,16 @@ const NgramAnalyzer = () => {
         if (acosPct <= 24) return <span className="ngram-badge acos-good">Good</span>;
         if (acosPct <= 36) return <span className="ngram-badge acos-warn">Near Target</span>;
         return <span className="ngram-badge acos-bad">High ACOS</span>;
+    };
+
+    // Coverage badge per row (#4)
+    const getCoverageBadge = (phrase) => {
+        if (!keywordSets) return null;
+        if (keywordSets.exact.has(phrase))  return <span className="ngram-badge coverage-exact">✓ Exact</span>;
+        if (keywordSets.phrase.has(phrase)) return <span className="ngram-badge coverage-phrase">~ Phrase</span>;
+        if (keywordSets.broad.has(phrase))  return <span className="ngram-badge coverage-broad">≈ Broad</span>;
+        if (keywordSets.auto.has(phrase))   return <span className="ngram-badge coverage-auto">Auto</span>;
+        return <span className="ngram-badge coverage-none">Not Targeted</span>;
     };
 
     // ======================================
@@ -737,6 +879,16 @@ const NgramAnalyzer = () => {
                 {/* Results Section */}
                 {ngramResults && summaryStats && (
                     <>
+                        {/* #1 Context Warning Banner */}
+                        <div className="ngram-context-warning">
+                            <AlertCircle size={16} className="ngram-context-warning-icon" />
+                            <div>
+                                <strong>N-gram analysis shows you patterns in queries that <em>already triggered</em> your ads.</strong>{' '}
+                                Gaps in your campaign structure — missing match types or untargeted search terms — won't appear here.
+                                Fix your keyword architecture first, then let n-grams become a feedback loop, not a guessing game.
+                            </div>
+                        </div>
+
                         {/* Summary Stats */}
                         <div className="ngram-summary-bar">
                             <div className="ngram-stat-card">
@@ -744,6 +896,16 @@ const NgramAnalyzer = () => {
                                 <span className="ngram-stat-label">Unique Search Terms</span>
                                 <span className="ngram-stat-value">{fmtNum(summaryStats.totalTerms)}</span>
                             </div>
+                            {coverageHealth && (
+                                <div className="ngram-stat-card ngram-stat-card--health" title="Exact coverage: % of search terms also targeted as Exact keywords">
+                                    <div className="stat-icon green"><TrendingUp size={18} /></div>
+                                    <span className="ngram-stat-label">Exact Coverage</span>
+                                    <span className="ngram-stat-value">{coverageHealth.exactPct.toFixed(1)}%</span>
+                                    <div className="ngram-health-bar-wrap">
+                                        <div className="ngram-health-bar" style={{ width: `${coverageHealth.exactPct}%` }} />
+                                    </div>
+                                </div>
+                            )}
                             <div className="ngram-stat-card">
                                 <div className="stat-icon red"><DollarSign size={18} /></div>
                                 <span className="ngram-stat-label">Total Spend</span>
@@ -816,6 +978,89 @@ const NgramAnalyzer = () => {
                                         <div className="ngram-insight-sub" style={{ marginTop: '0.35rem' }}>{globalInsights.convertingCount.toLocaleString()} converting search terms</div>
                                     </div>
                                 </div>
+
+                                {/* #3 Coverage Health Detail */}
+                                {coverageHealth && (
+                                    <>
+                                        <div className="ngram-insights-section-label" style={{ marginTop: '1.75rem' }}>
+                                            <span>Keyword Coverage Health</span>
+                                            <span className="ngram-insights-tag" style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e' }}>Structure</span>
+                                        </div>
+                                        <div className="ngram-coverage-grid">
+                                            {[
+                                                { label: 'Exact Targeted', pct: coverageHealth.exactPct,  count: coverageHealth.exactCount,  color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
+                                                { label: 'Phrase Only',    pct: coverageHealth.phrasePct, count: coverageHealth.phraseCount, color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+                                                { label: 'Broad Only',     pct: coverageHealth.broadPct,  count: coverageHealth.broadCount,  color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+                                                { label: 'Auto Only',      pct: coverageHealth.autoPct,   count: coverageHealth.autoOnlyCount, color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
+                                                { label: 'Not Targeted',   pct: coverageHealth.uncoveredPct, count: coverageHealth.uncoveredCount, color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+                                            ].map(item => (
+                                                <div key={item.label} className="ngram-coverage-item" style={{ background: item.bg }}>
+                                                    <div className="ngram-coverage-label">{item.label}</div>
+                                                    <div className="ngram-coverage-bar-wrap">
+                                                        <div className="ngram-coverage-bar-fill" style={{ width: `${item.pct}%`, background: item.color }} />
+                                                    </div>
+                                                    <div className="ngram-coverage-stats">
+                                                        <span style={{ color: item.color, fontWeight: 700 }}>{item.pct.toFixed(1)}%</span>
+                                                        <span className="ngram-coverage-count">{item.count.toLocaleString()} terms</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* #5 Campaign Structure Summary */}
+                                {structureSummary && structureSummary.totalSpend > 0 && (
+                                    <>
+                                        <div className="ngram-insights-section-label" style={{ marginTop: '1.75rem' }}>
+                                            <span>Campaign Structure</span>
+                                            <span className="ngram-insights-tag" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>Spend Allocation</span>
+                                        </div>
+                                        <div className="ngram-structure-grid">
+                                            <div className="ngram-insight-card">
+                                                <div className="ngram-insight-card-title"><DollarSign size={13} /> Spend by Match Type</div>
+                                                <div className="ngram-matchtype-rows">
+                                                    {[['Exact','exact','#22c55e'],['Phrase','phrase','#3b82f6'],['Broad','broad','#f59e0b'],['Auto','auto','#8b5cf6'],['Other','other','#6b7280']].map(([label, key, color]) => {
+                                                        if (structureSummary.mtSpend[key] === 0) return null;
+                                                        const pct = (structureSummary.mtSpend[key] / structureSummary.totalSpend) * 100;
+                                                        return (
+                                                            <div key={key} className="ngram-matchtype-row">
+                                                                <span className="ngram-matchtype-label" style={{ color }}>{label}</span>
+                                                                <div className="ngram-matchtype-bar-wrap">
+                                                                    <div className="ngram-matchtype-bar-fill" style={{ width: `${pct}%`, background: color }} />
+                                                                </div>
+                                                                <span className="ngram-matchtype-pct">{pct.toFixed(1)}%</span>
+                                                                <span className="ngram-matchtype-val">{fmtCur(structureSummary.mtSpend[key])}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                            <div className="ngram-insight-card">
+                                                <div className="ngram-insight-card-title"><TrendingUp size={13} /> Brand vs Non-Brand Spend</div>
+                                                <div className="ngram-spend-track" style={{ marginTop: '0.5rem' }}>
+                                                    <div className="ngram-spend-fill" style={{ width: `${structureSummary.brandPct}%`, background: 'linear-gradient(90deg,#3b82f6,#1d4ed8)' }} />
+                                                    <div className="ngram-spend-fill" style={{ width: `${structureSummary.nonBrandPct}%`, background: 'linear-gradient(90deg,#f59e0b,#d97706)' }} />
+                                                </div>
+                                                <div className="ngram-spend-legend" style={{ marginTop: '0.75rem' }}>
+                                                    <div className="ngram-spend-legend-item">
+                                                        <span className="ngram-legend-dot" style={{ background: '#3b82f6' }} />
+                                                        <span>Brand (high CVR terms)</span>
+                                                        <strong>{fmtCur(structureSummary.brandSpend)}</strong>
+                                                        <span className="ngram-legend-pct">{structureSummary.brandPct.toFixed(1)}%</span>
+                                                    </div>
+                                                    <div className="ngram-spend-legend-item">
+                                                        <span className="ngram-legend-dot" style={{ background: '#f59e0b' }} />
+                                                        <span>Non-Brand</span>
+                                                        <strong>{fmtCur(structureSummary.nonBrandSpend)}</strong>
+                                                        <span className="ngram-legend-pct">{structureSummary.nonBrandPct.toFixed(1)}%</span>
+                                                    </div>
+                                                </div>
+                                                <p className="ngram-structure-note">Brand terms estimated by CVR ≥ 2.5× account average.</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
 
                                 {/* Section B: Per-tab */}
                                 <div className="ngram-insights-section-label" style={{ marginTop: '1.75rem' }}>
@@ -927,6 +1172,7 @@ const NgramAnalyzer = () => {
                                                     </th>
                                                 ))}
                                                 <th className="ngram-th">Status</th>
+                                <th className="ngram-th">Coverage</th>
                                             </tr>
                                             {filtersVisible && (
                                                 <tr className="ngram-filter-row">
@@ -987,12 +1233,13 @@ const NgramAnalyzer = () => {
                                                         </td>
                                                     ))}
                                                     <td className="ngram-td">{getAcosBadge(row)}</td>
+                                                    <td className="ngram-td">{getCoverageBadge(row.phrase)}</td>
                                                 </tr>
                                             ))}
                                             {paginatedData.length === 0 && (
                                                 <tr>
                                                     <td
-                                                        colSpan={columns.length + 1}
+                                                        colSpan={columns.length + 2}
                                                         className="ngram-td"
                                                         style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}
                                                     >
@@ -1042,6 +1289,25 @@ const NgramAnalyzer = () => {
                             </div>
                         </div>
                     </>
+                )}
+
+                {/* #2 Cross-Tool Insight Card */}
+                {ngramResults && (
+                    <div className="ngram-crosstool-card">
+                        <div className="ngram-crosstool-icon"><AlertTriangle size={22} /></div>
+                        <div className="ngram-crosstool-body">
+                            <h4>N-gram patterns show what's triggering — not what's <em>missing</em>.</h4>
+                            <p>
+                                If your account has structural gaps — untargeted search terms, wrong match types,
+                                no auto-to-manual graduation — your n-gram data only reflects your blind spots.
+                                Use the <strong>Missing Opportunity Sheet</strong> to surface converting search terms
+                                that have zero Exact or Phrase keyword coverage.
+                            </p>
+                        </div>
+                        <a href="/tools/missing-opportunity-sheet" className="ngram-crosstool-btn">
+                            Open Missing Opportunity Sheet →
+                        </a>
+                    </div>
                 )}
 
                 <ConsultationCard />
