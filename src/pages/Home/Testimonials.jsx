@@ -1,31 +1,100 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Quote } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Quote, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './Testimonials.css';
+
+import imgR1 from '../../assets/R1.webp';
+import imgr2 from '../../assets/r2.webp';
+import imgr3 from '../../assets/r3.webp';
+import imgr7 from '../../assets/r7.webp';
+import imgr51 from '../../assets/r51.webp';
+import imgL1 from '../../assets/L1.webp';
+import imgl2 from '../../assets/l2.webp';
 
 const Testimonials = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [isFlipped, setIsFlipped] = useState(false);
+    const [isFlipping, setIsFlipping] = useState(false);
     const containerRef = useRef(null);
+    const flipTimeoutRef = useRef(null);
+
+    // Reset flip state when changing slides
+    useEffect(() => {
+        setIsFlipped(false);
+        setIsFlipping(false);
+    }, [currentIndex]);
+
+    useEffect(() => {
+        return () => {
+            if (flipTimeoutRef.current) {
+                clearTimeout(flipTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    const handleCardFlip = () => {
+        setIsFlipping(true);
+        setIsFlipped((prev) => !prev);
+
+        if (flipTimeoutRef.current) {
+            clearTimeout(flipTimeoutRef.current);
+        }
+
+        flipTimeoutRef.current = setTimeout(() => {
+            setIsFlipping(false);
+        }, 620);
+    };
 
     const testimonials = [
         {
             name: "Sarah Jenkins",
             company: "EcoHome Goods",
             image: "https://i.pravatar.cc/150?img=47",
-            quote: "Before Ads Acceleration, our ACoS was bleeding us dry at 45%. Within two months of them taking over and using their AI listing tools, our ACoS dropped to 18% and our organic rank for our main keyword went from page 3 to spot #2."
+            quote: "Before Ads Acceleration, our ACoS was bleeding us dry at 45%. Within two months of them taking over and using their AI listing tools, our ACoS dropped to 18% and our organic rank for our main keyword went from page 3 to spot #2.",
+            proof: imgR1
         },
         {
             name: "Marcus Thorne",
             company: "TechGear Pro",
             image: "https://i.pravatar.cc/150?img=11",
-            quote: "The visual assets their AI generated for our product listings were unbelievable. It saved us thousands in photography fees, and our conversion rate literally doubled overnight. Best agency decision we've made."
+            quote: "The visual assets their AI generated for our product listings were unbelievable. It saved us thousands in photography fees, and our conversion rate literally doubled overnight. Best agency decision we've made.",
+            proof: imgr2
         },
         {
             name: "Emily Chen",
             company: "VitaSupplements",
             image: "https://i.pravatar.cc/150?img=5",
-            quote: "I was skeptical about moving away from our old agency, but the custom competitor insights Ads Acceleration provided exactly pinpointed why we were losing market share. We are now the #1 Best Seller in our subcategory."
+            quote: "I was skeptical about moving away from our old agency, but the custom competitor insights Ads Acceleration provided exactly pinpointed why we were losing market share. We are now the #1 Best Seller in our subcategory.",
+            proof: imgr3
+        },
+        {
+            name: "David Ross",
+            company: "Apex Outfitter",
+            image: "https://i.pravatar.cc/150?img=15",
+            quote: "Unbelievable ROI within the first 30 days! Their targeted PPC campaigns helped us lower our TACOS while scaling revenue by 300%. The team really knows the Amazon algorithm inside out.",
+            proof: imgr7
+        },
+        {
+            name: "Amanda Vega",
+            company: "Lumiere Beauty",
+            image: "https://i.pravatar.cc/150?img=32",
+            quote: "We struggled to get visibility until we partnered with them. Not only did they fix our backend keywords, they practically took over our ad strategy and delivered mind-blowing growth. Highly recommend!",
+            proof: imgr51
+        },
+        {
+            name: "James L.",
+            company: "ProFit Essentials",
+            image: "https://i.pravatar.cc/150?img=60",
+            quote: "Hands down the best investment for our brand. The transparency, the daily metric updates, and their relentless drive to drop our ACoS were exactly what we needed to dominate up seasonal sales.",
+            proof: imgL1
+        },
+        {
+            name: "Sophia Martinez",
+            company: "Urban Pet Store",
+            image: "https://i.pravatar.cc/150?img=43",
+            quote: "Our margins have never been better. They identified wasted ad spend on day one. By month 3 we hit 7-figures in revenue while our ad spend stayed relatively flat. A true game changer.",
+            proof: imgl2
         }
     ];
 
@@ -172,17 +241,33 @@ const Testimonials = () => {
                                 className="carousel-slide"
                             >
                                 <div
-                                    className="testimonial-card card-glass"
+                                    className={`testimonial-card card-glass ${isFlipped ? 'is-flipped' : ''} ${isFlipping ? 'is-flipping' : ''}`}
                                     onMouseMove={handleMouseMove}
                                     onMouseLeave={handleMouseLeaveCard}
+                                    onClick={handleCardFlip}
                                 >
-                                    <Quote className="quote-icon" size={40} />
-                                    <p className="testimonial-text">"{testimonials[currentIndex].quote}"</p>
-                                    <div className="testimonial-author">
-                                        <img src={testimonials[currentIndex].image} alt={testimonials[currentIndex].name} className="author-img" />
-                                        <div className="author-info">
-                                            <h4 className="author-name">{testimonials[currentIndex].name}</h4>
-                                            <span className="author-company">{testimonials[currentIndex].company}</span>
+                                    <div className="card-face front-face">
+                                        <div className="hover-flip-trigger">
+                                            <RefreshCw size={18} className="flip-icon" />
+                                            <span>Click to view proof</span>
+                                        </div>
+                                        <Quote className="quote-icon" size={40} />
+                                        <p className="testimonial-text">"{testimonials[currentIndex].quote}"</p>
+                                        <div className="testimonial-author">
+                                            <img src={testimonials[currentIndex].image} alt={testimonials[currentIndex].name} className="author-img" />
+                                            <div className="author-info">
+                                                <h4 className="author-name">{testimonials[currentIndex].name}</h4>
+                                                <span className="author-company">{testimonials[currentIndex].company}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="card-face back-face">
+                                        <div className="hover-flip-trigger">
+                                            <RefreshCw size={18} className="flip-icon" />
+                                            <span>Click to go back</span>
+                                        </div>
+                                        <div className="proof-image-container">
+                                            <img src={testimonials[currentIndex].proof} alt="Client Proof" className="proof-image" />
                                         </div>
                                     </div>
                                 </div>

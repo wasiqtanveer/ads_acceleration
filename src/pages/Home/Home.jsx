@@ -10,11 +10,11 @@ const Home = () => {
     return (
         <div className="home-page">
             <Hero />
-            <MarqueeLogos />
+            {/* <MarqueeLogos />
             <Features />
-            <MarqueeText text="SCALE YOUR BRAND • AI POWERED • DOMINATE AMAZON" />
+            <MarqueeText text="SCALE YOUR BRAND • AI POWERED • DOMINATE AMAZON" /> */}
             <Testimonials />
-            <FAQ />
+            {/* <FAQ /> */}
         </div>
     );
 };

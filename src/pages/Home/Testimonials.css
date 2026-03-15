@@ -217,28 +217,124 @@ body.light-mode .hollow {
 }
 
 .testimonial-card {
-    padding: 4rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
     height: 100%;
+    min-height: 480px;
     position: relative;
-    overflow: hidden;
-    background-color: var(--color-bg-card);
-    border: 1px solid var(--color-border);
+    /* Do NOT hide overflow completely on the wrapper so we don't clip 3D corners, but we will on faces */
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
 
     /* 3D Physics base */
     transform-style: preserve-3d;
     transform: perspective(1000px) rotateY(var(--tilt-x, 0deg)) rotateX(var(--tilt-y, 0deg));
-    transition: transform 0.1s ease-out, box-shadow 0.3s ease, border-color 0.3s ease;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.testimonial-card:hover {
+    transition: transform 0.08s ease-out;
+}
+
+.testimonial-card.is-flipping {
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.testimonial-card.is-flipped {
+    transform: perspective(1000px) rotateY(calc(var(--tilt-x, 0deg) + 180deg)) rotateX(calc(var(--tilt-y, 0deg) * -1));
+}
+
+.card-face {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 3.5rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    overflow: hidden;
+    transform-style: preserve-3d;
+}
+
+.front-face {
+    transform: rotateY(0deg);
+}
+
+.back-face {
+    transform: rotateY(180deg);
+}
+
+/* Hover hint UI */
+.hover-flip-trigger {
+    position: absolute;
+    top: -1.8rem;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 204, 0, 0.1);
+    color: var(--color-primary);
+    padding: 0.4rem 1rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    opacity: 0;
+    width: fit-content;
+    margin: 0 auto;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    border: 1px solid rgba(255, 204, 0, 0.2);
+    z-index: 10;
+    white-space: nowrap;
+}
+
+.testimonial-card:hover .hover-flip-trigger {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.flip-icon {
+    animation: spinSlow 3s linear infinite;
+}
+
+@keyframes spinSlow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.proof-image-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    overflow: hidden;
+    object-fit: contain;
+}
+
+.proof-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 /* Ambient "Breathing Core" state when NOT hovered */
-.testimonial-card:not(:hover) {
+.testimonial-card:not(:hover) .card-face {
     animation: ambientGlow 4s infinite alternate ease-in-out;
-    transition: transform 0.5s ease-out;
-    /* Smooth snap back to 0deg tilt */
+    /* Smooth snap back to 0deg tilt handled natively by removing variables */
 }
 
 @keyframes ambientGlow {
@@ -254,7 +350,7 @@ body.light-mode .hollow {
 }
 
 /* Mouse Spotlight Effect */
-.testimonial-card::before {
+.card-face::before {
     content: "";
     position: absolute;
     top: 0;
@@ -270,12 +366,12 @@ body.light-mode .hollow {
     pointer-events: none;
 }
 
-.testimonial-card:hover::before {
+.testimonial-card:hover .card-face::before {
     opacity: 1;
 }
 
 /* Ensure content stays above the spotlight layer */
-.testimonial-card>* {
+.card-face > * {
     position: relative;
     z-index: 2;
 }
@@ -383,22 +479,22 @@ body.light-mode .hollow {
 }
 
 /* =====================
-   Light Mode Overrides 
+   Light Mode Overrides
    ===================== */
-body.light-mode .testimonial-card {
+body.light-mode .card-face {
     background: linear-gradient(135deg, rgba(229, 9, 20, 0.10) 0%, rgba(229, 9, 20, 0.22) 100%);
     border-color: rgba(229, 9, 20, 0.3);
 }
 
 /* Light mode hover spotlight: distinct white glow instead of yellow */
-body.light-mode .testimonial-card::before {
+body.light-mode .card-face::before {
     background: radial-gradient(circle at var(--mouse-x, -500px) var(--mouse-y, -500px),
             rgba(255, 255, 255, 1),
             rgba(255, 255, 255, 0) 50%);
 }
 
 /* Light mode ambient glow: pulse red instead of yellow */
-body.light-mode .testimonial-card:not(:hover) {
+body.light-mode .testimonial-card:not(:hover) .card-face {
     animation: ambientGlowLightRed 4s infinite alternate ease-in-out;
 }
 

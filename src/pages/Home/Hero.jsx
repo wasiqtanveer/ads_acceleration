@@ -37,6 +37,7 @@ const Hero = () => {
                     initial="hidden"
                     animate="visible"
                 >
+                    {/* 
                     <motion.div variants={itemVariants} className="hero-badge-wrap">
                         <div className="hero-badge">
                             <span className="badge-pulse"></span>
@@ -44,7 +45,6 @@ const Hero = () => {
                         </div>
                     </motion.div>
 
-                    {/* Redixo-style typography: Mix of Sans and Italic Serif */}
                     <motion.h1 variants={itemVariants} className="hero-title-massive">
                         Scale your brand with <br />
                         <span className="text-italic-serif">Ads Acceleration</span>
@@ -81,6 +81,11 @@ const Hero = () => {
                             <span className="stat-label">Brands Scaled</span>
                         </div>
                     </motion.div>
+                    */}
+                    
+                    <motion.h1 variants={itemVariants} className="hero-title-massive" style={{ paddingTop: '80px', paddingBottom: '80px' }}>
+                        <span className="text-italic-serif">Coming Soon...</span>
+                    </motion.h1>
 
                 </motion.div>
             </div>
