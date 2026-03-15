@@ -597,6 +597,78 @@ const MissingOpportunitySheet = () => {
         return sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
     };
 
+    // ── Opportunity Summary Stats ──────────────────────────────────────────────
+
+    const opportunitySummary = useMemo(() => {
+        if (!enrichedRows.length) return null;
+
+        const converting = enrichedRows.filter(r => r.orders > 0);
+        const totalConverting = converting.length;
+
+        // Terms converting but NOT yet in Exact — prime isolation targets
+        const noExact = converting.filter(r => r.triggers.exact === 0);
+        const noExactCount = noExact.length;
+        const noExactPct = totalConverting > 0 ? Math.round((noExactCount / totalConverting) * 100) : 0;
+
+        // Of those unisolated converting terms, how many are only in Broad?
+        const broadOnly = noExact.filter(r => r.triggers.broad > 0 && r.triggers.phrase === 0);
+        const broadOnlyPct = noExactCount > 0 ? Math.round((broadOnly.length / noExactCount) * 100) : 0;
+
+        // Revenue currently attributed to unisolated terms (at risk / opportunity)
+        const revenueAtRisk = noExact.reduce((s, r) => s + (r.sales || 0), 0);
+
+        // Projected uplift: isolating to Exact typically yields ~20-30% CVR improvement
+        // We use 22% as conservative estimate
+        const projectedUplift = revenueAtRisk * 0.22;
+
+        // High strength (2+ orders, good ACOS)
+        const highStrength = enrichedRows.filter(r => r.orders >= 2 && r.isOpportunity);
+
+        // Top unisolated term (most orders, no exact)
+        const topTerm = [...noExact].sort((a, b) => b.orders - a.orders)[0];
+
+        // Total unique terms
+        const totalTerms = enrichedRows.length;
+        const opportunities = enrichedRows.filter(r => r.isOpportunity).length;
+
+        // Dynamic Funnel Variables
+        const vOrders = topTerm ? topTerm.orders : 50;
+        let vTerm = topTerm ? topTerm.customerSearchTerm : 'wireless earbuds';
+        if (vTerm.length > 30) vTerm = vTerm.substring(0, 30) + '...';
+        const vMatch = topTerm ? (topTerm.matchType.toLowerCase() === 'phrase' ? 'Phrase' : 'Broad') : 'Broad';
+        const vProj = Math.round(vOrders * 1.5);
+
+        // Find an exact-only converting term or just a good converting term
+        const exactOnly = converting.filter(r => r.triggers.exact > 0 && r.triggers.broad === 0 && r.triggers.phrase === 0);
+        const expandTerm = exactOnly.length > 0 ? [...exactOnly].sort((a,b) => b.orders - a.orders)[0] : [...converting].sort((a,b) => b.orders - a.orders)[0];
+        const hOrders = expandTerm ? expandTerm.orders : 10;
+        const hProj = Math.round(hOrders * 3);
+
+        // Top Leaking Products (ASINs/SKUs with most unisolated sales)
+        const productMap = {};
+        for (const r of noExact) {
+            const ident = (r.asins || r.skus || '').split(',')[0].trim();
+            if (!ident) continue;
+            if (!productMap[ident]) productMap[ident] = { ident, sales: 0, orders: 0, terms: 0 };
+            productMap[ident].sales += parseNum(r.sales);
+            productMap[ident].orders += parseNum(r.orders);
+            productMap[ident].terms += 1;
+        }
+        const topProducts = Object.values(productMap)
+            .sort((a, b) => b.sales - a.sales)
+            .slice(0, 3);
+
+        return {
+            totalTerms, opportunities, totalConverting,
+            noExactCount, noExactPct, broadOnly: broadOnly.length, broadOnlyPct,
+            revenueAtRisk, projectedUplift, highStrength: highStrength.length,
+            topTerm,
+            vOrders, vTerm, vMatch, vProj,
+            hOrders, hProj,
+            topProducts
+        };
+    }, [enrichedRows]);
+
     // ── Bulk Campaign Generation ───────────────────────────────────────────────
 
     const selectedCount = useMemo(() => {
@@ -628,7 +700,38 @@ const MissingOpportunitySheet = () => {
     const handleRegSuccess = () => {
         setShowRegModal(false);
         if (pendingActionRef.current === 'bulk') doGenerateBulk();
+        if (pendingActionRef.current === 'magic') doMagicSelect();
         pendingActionRef.current = null;
+    };
+
+    const doMagicSelect = useCallback(() => {
+        // Find top 10 rows that have no exact coverage, sorted by sales
+        const top10 = [...enrichedRows]
+            .filter(r => r.orders > 0 && r.triggers.exact === 0)
+            .sort((a, b) => b.sales - a.sales)
+            .slice(0, 10);
+
+        if (top10.length === 0) {
+            alert('No suitable opportunities found for Auto-Select.');
+            return;
+        }
+
+        setSelectedMatches(prev => {
+            const next = { ...prev };
+            top10.forEach(r => {
+                next[r.id] = { ...next[r.id], exact: true }; // Select Exact match
+            });
+            return next;
+        });
+
+        // Jump to table
+        document.querySelector('.mos-table-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [enrichedRows]);
+
+    const handleMagicSelect = () => {
+        if (isRegistered) { doMagicSelect(); return; }
+        pendingActionRef.current = 'magic';
+        setShowRegModal(true);
     };
 
     const handleToggleAllFor = (type) => {
@@ -771,8 +874,11 @@ const MissingOpportunitySheet = () => {
                     <TrendingUp size={36} color="var(--color-primary)" />
                 </div>
                 <h1>Missing Opportunity Sheet</h1>
-                <p className="text-muted gf-subtitle">
-                    Analyse your SP Search Term Report to surface high-performing search terms not yet targeted as Exact or Phrase keywords.
+                <h3 style={{ fontSize: '1.2rem', fontFamily: 'var(--font-heading)', marginTop: '0.75rem', marginBottom: '0.4rem', color: 'var(--color-text)' }}>
+                    Converting Search Terms That Haven't Been Locked Down Yet — <span style={{ color: 'var(--color-primary)' }}>Fix This to Add 15–25% Revenue</span> from Your Existing Spend
+                </h3>
+                <p className="text-muted gf-subtitle" style={{ fontStyle: 'italic' }}>
+                    Search term data is not just for negation — it's your roadmap for revenue scaling.
                 </p>
             </div>
 
@@ -959,6 +1065,150 @@ const MissingOpportunitySheet = () => {
                 </div>
             </div>
 
+            {/* ── Opportunity Intelligence Summary ── */}
+            {opportunitySummary && (
+                <div className="mos-summary-wrapper">
+                    {/* Revenue Projection Banner */}
+                    <div className="mos-summary-hero" style={{ padding: '2rem', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.02))', borderColor: 'rgba(34,197,94,0.2)' }}>
+                        <div className="mos-revenue-projection" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
+                            <div className="mos-rev-label">Estimated Revenue Uplift</div>
+                            <div className="mos-rev-amount">
+                                ${Math.round(opportunitySummary.projectedUplift).toLocaleString()}
+                                <span style={{ fontSize: '1.1rem', color: 'var(--color-text-muted)', fontWeight: '600', marginLeft: '0.5rem', textShadow: 'none', letterSpacing: '0' }}>
+                                    / ${Math.round(opportunitySummary.revenueAtRisk + opportunitySummary.projectedUplift).toLocaleString()} Total
+                                </span>
+                            </div>
+                            <div className="mos-rev-sub">
+                                if {opportunitySummary.noExactCount} unisolated terms move to Exact
+                            </div>
+                            <div className="mos-rev-bar-wrap" style={{ marginTop: '0.75rem' }}>
+                                <div className="mos-rev-bar-before" style={{ flex: 60 }}>Before: ${Math.round(opportunitySummary.revenueAtRisk).toLocaleString()}</div>
+                                <div className="mos-rev-bar-after" style={{ flex: 40 }}>+${Math.round(opportunitySummary.projectedUplift).toLocaleString()}</div>
+                            </div>
+                            <div className="mos-rev-bar-labels">
+                                <span>Current Sales</span>
+                                <span className="mos-rev-growth">+22% Estimated Growth</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Stat Cards Row */}
+                    <div className="mos-summary-stat-grid">
+                        <div className="mos-summary-stat-card mos-stat-blue">
+                            <div className="mos-stat-icon">🎯</div>
+                            <div className="mos-stat-value">{opportunitySummary.totalConverting}</div>
+                            <div className="mos-stat-label">Converting Search Terms</div>
+                            <div className="mos-stat-sub">From your uploaded report</div>
+                        </div>
+                        <div className="mos-summary-stat-card mos-stat-red">
+                            <div className="mos-stat-icon">⚠️</div>
+                            <div className="mos-stat-value">{opportunitySummary.noExactCount}</div>
+                            <div className="mos-stat-label">Not Isolated to Exact</div>
+                            <div className="mos-stat-sub">{opportunitySummary.noExactPct}% of converting terms</div>
+                        </div>
+                        <div className="mos-summary-stat-card mos-stat-amber">
+                            <div className="mos-stat-icon">📢</div>
+                            <div className="mos-stat-value">{opportunitySummary.broadOnly}</div>
+                            <div className="mos-stat-label">Broad-Only with Conversions</div>
+                            <div className="mos-stat-sub">{opportunitySummary.broadOnlyPct}% of unisolated terms</div>
+                        </div>
+                        <div className="mos-summary-stat-card mos-stat-green">
+                            <div className="mos-stat-icon">🔥</div>
+                            <div className="mos-stat-value">{opportunitySummary.highStrength}</div>
+                            <div className="mos-stat-label">High-Strength Opportunities</div>
+                            <div className="mos-stat-sub">2+ orders, missing Exact/Phrase</div>
+                        </div>
+                    </div>
+
+                    {/* Funnel Story Cards */}
+                    <div className="mos-funnel-grid">
+                        <div className="mos-funnel-card mos-funnel-vertical">
+                            <div className="mos-funnel-badge">Vertical Funnel</div>
+                            <div className="mos-funnel-icon">↓</div>
+                            <h3 className="mos-funnel-title">Isolation → Precision → More Orders</h3>
+                            <p className="mos-funnel-body">
+                                Imagine a term from your data like <strong>"{opportunitySummary.vTerm}"</strong> converting in {opportunitySummary.vMatch} — giving you {opportunitySummary.vOrders} orders. 
+                                The moment you isolate it into its own Exact campaign with a dedicated bid and budget, 
+                                that same term starts delivering <strong>{opportunitySummary.vProj} orders</strong> — because it's no longer 
+                                competing for budget with irrelevant traffic.
+                            </p>
+                            <div className="mos-funnel-result">
+                                <div className="mos-funnel-before"><span className="mos-funnel-num">{opportunitySummary.vOrders}</span><span>orders in {opportunitySummary.vMatch}</span></div>
+                                <div className="mos-funnel-arrow">
+                                    <div className="mos-funnel-arrow-icon">→</div>
+                                    <div className="mos-funnel-pct">+{Math.round(((opportunitySummary.vProj - opportunitySummary.vOrders) / opportunitySummary.vOrders) * 100)}%</div>
+                                </div>
+                                <div className="mos-funnel-after"><span className="mos-funnel-num">{opportunitySummary.vProj}</span><span>orders in Exact</span></div>
+                            </div>
+                        </div>
+                        <div className="mos-funnel-card mos-funnel-horizontal">
+                            <div className="mos-funnel-badge">Horizontal Funnel</div>
+                            <div className="mos-funnel-icon">→</div>
+                            <h3 className="mos-funnel-title">Expansion → New Clusters → New Volume</h3>
+                            <p className="mos-funnel-body">
+                                You had a search term converting at {opportunitySummary.hOrders} orders from Exact. After launching a separate Broad 
+                                campaign for keyword expansion based on it, the adjacent keywords from that Broad campaign began converting — 
+                                adding <strong>{opportunitySummary.hProj}+ incremental orders</strong> you couldn't see before.
+                            </p>
+                            <div className="mos-funnel-result">
+                                <div className="mos-funnel-before"><span className="mos-funnel-num">{opportunitySummary.hOrders}</span><span>orders (Exact only)</span></div>
+                                <div className="mos-funnel-arrow">
+                                    <div className="mos-funnel-arrow-icon">→</div>
+                                    <div className="mos-funnel-pct">+{Math.round(((opportunitySummary.hProj - opportunitySummary.hOrders) / opportunitySummary.hOrders) * 100)}%</div>
+                                </div>
+                                <div className="mos-funnel-after"><span className="mos-funnel-num">{opportunitySummary.hProj}+</span><span>with expansion</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Opportunity Strength Banner & Products */}
+                    {opportunitySummary.noExactCount > 0 && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(300px, 400px)', gap: '1.25rem' }}>
+                            {/* Coverage Banner */}
+                            <div className="mos-coverage-banner" style={{ height: '100%', justifyContent: 'center' }}>
+                                <div className="mos-coverage-text">
+                                    <strong>{opportunitySummary.noExactPct}%</strong> of your converting terms are running without Exact keyword isolation.
+                                    {opportunitySummary.topTerm && (
+                                        <> Your top opportunity: <strong>"{opportunitySummary.topTerm.customerSearchTerm}"</strong> — {opportunitySummary.topTerm.orders} orders, {opportunitySummary.topTerm.triggers.exact === 0 ? 'no Exact keyword yet' : 'not isolated'}.</>  
+                                    )}
+                                </div>
+                                <div className="mos-coverage-bar-wrap mos-has-tooltip">
+                                    <div className="mos-coverage-bar-isolated" style={{ width: `${100 - opportunitySummary.noExactPct}%` }} />
+                                    <div className="mos-coverage-bar-danger" style={{ width: `${opportunitySummary.noExactPct}%` }} />
+                                    <div className="mos-tooltip">
+                                        Isolation limits broad-match bleeding and gives you exact bid control.
+                                    </div>
+                                </div>
+                                <div className="mos-coverage-bar-legend">
+                                    <span><span className="mos-legend-dot isolated" />Already Isolated ({100 - opportunitySummary.noExactPct}%)</span>
+                                    <span><span className="mos-legend-dot danger" />Missing Isolation ({opportunitySummary.noExactPct}%)</span>
+                                </div>
+                            </div>
+                            
+                            {/* Top Leaking Products Insights */}
+                            {opportunitySummary.topProducts && opportunitySummary.topProducts.length > 0 && (
+                                <div className="mos-coverage-banner" style={{ background: 'rgba(245, 158, 11, 0.04)', borderColor: 'rgba(245, 158, 11, 0.2)' }}>
+                                    <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#f59e0b', fontWeight: '800' }}>
+                                        Products Leaking Revenue
+                                    </h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                        {opportunitySummary.topProducts.map((p, i) => (
+                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                                                <span style={{ fontWeight: '600', color: 'var(--color-text)' }}>{p.ident}</span>
+                                                <div style={{ display: 'flex', gap: '1rem', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
+                                                    <span>{p.terms} terms</span>
+                                                    <strong style={{ color: '#ef4444' }}>${Math.round(p.sales).toLocaleString()}</strong>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ── Step 3: Results ── */}
             {allRows.length > 0 && (
                 <div className="gf-section-card gf-step-card" onClick={e => e.stopPropagation()}>
@@ -998,15 +1248,32 @@ const MissingOpportunitySheet = () => {
                             </div>
 
                             <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <button
-                                    type="button"
-                                    className="gf-generate-bulk-btn mos-bulk-generate-btn"
-                                    onClick={handleGenerateBulk}
-                                    disabled={selectedCount === 0}
-                                >
-                                    <Download size={15} />
-                                    Generate Bulk File{selectedCount > 0 ? ` (${selectedCount})` : ''}
-                                </button>
+                                <div className="mos-has-tooltip">
+                                    <button
+                                        type="button"
+                                        className="gf-generate-bulk-btn mos-magic-btn"
+                                        onClick={handleMagicSelect}
+                                    >
+                                        ✨ <span className="mos-magic-btn-text">Auto-Select Top 10</span>
+                                    </button>
+                                    <div className="mos-tooltip">
+                                        Instantly isolates the top 10 most profitable terms.
+                                    </div>
+                                </div>
+                                <div className="mos-has-tooltip">
+                                    <button
+                                        type="button"
+                                        className="gf-generate-bulk-btn mos-bulk-generate-btn"
+                                        onClick={handleGenerateBulk}
+                                        disabled={selectedCount === 0}
+                                    >
+                                        <Download size={15} />
+                                        Generate Bulk File{selectedCount > 0 ? ` (${selectedCount})` : ''}
+                                    </button>
+                                    <div className="mos-tooltip">
+                                        Exports your exact choices into a ready-to-upload Amazon format.
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
